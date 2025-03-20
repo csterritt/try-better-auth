@@ -1,8 +1,1 @@
-```txt
-npm install
-npm run dev
-```
-
-```txt
-npm run deploy
-```
+### Try the better-auth library for authentication, with hono/cloudflare/d1
