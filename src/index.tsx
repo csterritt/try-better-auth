@@ -1,4 +1,6 @@
 import { Hono, Context } from 'hono'
+import { showRoutes } from 'hono/dev'
+import { logger } from 'hono/logger'
 
 import { renderer } from './renderer'
 import { auth } from './auth'
@@ -28,6 +30,9 @@ interface Env {
 
 const app = new Hono<{ Bindings: Env }>()
 
+// Apply the logger middleware
+app.use('*', logger())
+
 // Apply the renderer middleware
 app.use(renderer)
 
@@ -37,16 +42,9 @@ app.use('*', authMiddleware)
 // Handle all Better Auth API routes
 // Using the correct app.on() method according to Better Auth docs
 app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
-  // Get the URL path for debugging
-  const path = new URL(c.req.url).pathname
-  console.log('Auth request path:', path)
-
   try {
     // Call the auth handler with the raw request
-    console.log('About to call Auth handler')
-    const res = await auth.handler(c.req.raw)
-    console.log('Auth handler response:', res)
-    return res
+    return auth.handler(c.req.raw)
   } catch (error) {
     console.error('Auth handler error:', error)
     return c.json({ error: 'Authentication failed' }, 500)
@@ -191,5 +189,7 @@ app.get('/protected', (c: Context) => {
     </div>
   )
 })
+
+showRoutes(app)
 
 export default app
