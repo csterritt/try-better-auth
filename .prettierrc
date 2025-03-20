@@ -4,5 +4,13 @@
   "tabWidth": 2,
   "semi": false,
   "singleQuote": true,
-  "arrowParens": "always"
+  "arrowParens": "always",
+  "overrides": [
+    {
+      "files": "*.jsonc",
+      "options": {
+        "trailingComma": "none"
+      }
+    }
+  ]
 }

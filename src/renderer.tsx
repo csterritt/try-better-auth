@@ -4,7 +4,6 @@ export const renderer = jsxRenderer(({ children }) => {
   return (
     <html>
       <head>
-        <link href='/static/style.css' rel='stylesheet' />
         <link
           rel='stylesheet'
           href='https://yarnpkg.com/en/package/normalize.css'
