@@ -5,7 +5,15 @@
   "pages_build_output_dir": "./dist",
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tba-test",
+      "database_id": "6b6a8f76-a9eb-4dca-ba4e-debddbf5c4e8"
+    }
   ]
+  
   // "vars": {
   //   "MY_VAR": "my-variable"
   // },
