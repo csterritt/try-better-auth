@@ -5,16 +5,16 @@ import { logger } from 'hono/logger'
 import { renderer } from './renderer'
 import { auth } from './auth'
 import { authMiddleware } from './middleware'
+import { drizzle } from 'drizzle-orm/d1'
 
 // Define a session type to match what Better Auth will provide
 interface User {
   id: string
-  email?: string
-  name?: string
+  email: string
 }
 
 interface Session {
-  user?: User
+  user: User | null
 }
 
 declare module 'hono' {
@@ -51,37 +51,60 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
   }
 })
 
-// Home route - accessible to everyone
-app.get('/', (c: Context) => {
-  const session = c.get('session')
-  const isLoggedIn = !!session?.user
+/**
+ * Props for the authenticated view component
+ */
+interface AuthenticatedViewProps {
+  session: Session | null;
+}
 
-  return c.render(
+/**
+ * Renders the authenticated user view
+ * @param props Component props containing the session
+ * @returns JSX element for the authenticated view
+ */
+const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
+  const userEmail = session?.user?.email || 'User';
+  
+  return (
     <div>
-      <h1>Authentication Example with Better Auth Email OTP</h1>
-      {isLoggedIn ? (
-        <div>
-          <p>Welcome, {session?.user?.email || 'User'}!</p>
-          <p>You are logged in.</p>
-          <button id='signOutBtn'>Sign Out</button>
-          <a href='/protected'>Go to protected page</a>
-        </div>
-      ) : (
-        <div>
-          <h4>Login with OTP</h4>
-          <form id='otpForm'>
-            <input type='email' id='email' placeholder='Email' required />
-            <button type='submit'>Send OTP</button>
-          </form>
-          <div id='otpVerify' style={{ display: 'none' }}>
-            <form id='verifyForm'>
-              <input type='text' id='otp' placeholder='Enter OTP' required />
-              <button type='submit'>Verify & Login</button>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* Include the auth client bundle */}
+      <p>Welcome, {userEmail}!</p>
+      <p>You are logged in.</p>
+      <button id='signOutBtn'>Sign Out</button>
+      <a href='/protected'>Go to protected page</a>
+    </div>
+  );
+};
+
+/**
+ * Renders the login form for unauthenticated users
+ * @returns JSX element for the login form
+ */
+const LoginForm = () => {
+  return (
+    <div>
+      <h4>Login with OTP</h4>
+      <form id='otpForm'>
+        <input type='email' id='email' placeholder='Email' required />
+        <button type='submit'>Send OTP</button>
+      </form>
+      <div id='otpVerify' style={{ display: 'none' }}>
+        <form id='verifyForm'>
+          <input type='text' id='otp' placeholder='Enter OTP' required />
+          <button type='submit'>Verify & Login</button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Client-side authentication script
+ * @returns JSX element containing the client-side script
+ */
+const AuthClientScript = () => {
+  return (
+    <>
       <script src='/auth-client-bundle.js'></script>
       <script
         dangerouslySetInnerHTML={{
@@ -161,6 +184,51 @@ app.get('/', (c: Context) => {
       `,
         }}
       ></script>
+    </>
+  );
+};
+
+/**
+ * Protected content view for authenticated users
+ * @param props Component props containing the session
+ * @returns JSX element for the protected content
+ */
+const ProtectedContent = ({ session }: AuthenticatedViewProps) => {
+  return (
+    <div>
+      <p>Welcome to the protected page, {session?.user?.email || 'User'}!</p>
+      <p>
+        <a href='/'>Back to Home</a>
+      </p>
+    </div>
+  );
+};
+
+/**
+ * Unauthorized content view for unauthenticated users
+ * @returns JSX element for the unauthorized content
+ */
+const UnauthorizedContent = () => {
+  return (
+    <div>
+      <p>You need to be logged in to view this page.</p>
+      <p>
+        <a href='/'>Back to Home</a>
+      </p>
+    </div>
+  );
+};
+
+// Home route - accessible to everyone
+app.get('/', (c: Context) => {
+  const session = c.get('session')
+  const isLoggedIn = !!session?.user
+
+  return c.render(
+    <div>
+      <h1>Authentication Example with Better Auth Email OTP</h1>
+      {isLoggedIn ? <AuthenticatedView session={session} /> : <LoginForm />}
+      <AuthClientScript />
     </div>
   )
 })
@@ -171,21 +239,7 @@ app.get('/protected', (c: Context) => {
   return c.render(
     <div>
       <h3>Protected Page</h3>
-      {session?.user ? (
-        <div>
-          <p>Welcome to the protected page, {session.user.email || 'User'}!</p>
-          <p>
-            <a href='/'>Back to Home</a>
-          </p>
-        </div>
-      ) : (
-        <div>
-          <p>You need to be logged in to view this page.</p>
-          <p>
-            <a href='/'>Back to Home</a>
-          </p>
-        </div>
-      )}
+      {session?.user ? <ProtectedContent session={session} /> : <UnauthorizedContent />}
     </div>
   )
 })
