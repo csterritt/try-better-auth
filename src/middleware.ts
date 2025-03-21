@@ -21,13 +21,13 @@ export const authMiddleware = async (
 ): Promise<Response | void> => {
   try {
     // Get the session from Better Auth
-    const session = await auth.api.getSession({ 
-      headers: c.req.raw.headers 
+    const session = await auth.api.getSession({
+      headers: c.req.raw.headers,
     })
-    
+
     // Set the session in the context
     c.set('session', session || null)
-    
+
     // Check if accessing a protected route without authentication
     const url = new URL(c.req.url)
     if (url.pathname === '/protected' && !session) {

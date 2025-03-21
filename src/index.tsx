@@ -5,7 +5,6 @@ import { logger } from 'hono/logger'
 import { renderer } from './renderer'
 import { auth } from './auth'
 import { authMiddleware } from './middleware'
-import { drizzle } from 'drizzle-orm/d1'
 
 // Define a session type to match what Better Auth will provide
 interface User {
@@ -55,7 +54,7 @@ app.on(['POST', 'GET'], '/api/auth/*', async (c) => {
  * Props for the authenticated view component
  */
 interface AuthenticatedViewProps {
-  session: Session | null;
+  session: Session | null
 }
 
 /**
@@ -64,17 +63,19 @@ interface AuthenticatedViewProps {
  * @returns JSX element for the authenticated view
  */
 const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
-  const userEmail = session?.user?.email || 'User';
-  
+  const userEmail = session?.user?.email || 'User'
+
   return (
     <div>
       <p>Welcome, {userEmail}!</p>
       <p>You are logged in.</p>
-      <button id='signOutBtn'>Sign Out</button>
+      <form action='/api/my-auth/sign-out' method='post'>
+        <button type='submit'>Sign Out</button>
+      </form>
       <a href='/protected'>Go to protected page</a>
     </div>
-  );
-};
+  )
+}
 
 /**
  * Renders the login form for unauthenticated users
@@ -84,109 +85,19 @@ const LoginForm = () => {
   return (
     <div>
       <h4>Login with OTP</h4>
-      <form id='otpForm'>
-        <input type='email' id='email' placeholder='Email' required />
+      <form action='/api/my-auth/start-otp' method='post'>
+        <input
+          type='email'
+          id='email'
+          name='email'
+          placeholder='Email'
+          required
+        />
         <button type='submit'>Send OTP</button>
       </form>
-      <div id='otpVerify' style={{ display: 'none' }}>
-        <form id='verifyForm'>
-          <input type='text' id='otp' placeholder='Enter OTP' required />
-          <button type='submit'>Verify & Login</button>
-        </form>
-      </div>
     </div>
-  );
-};
-
-/**
- * Client-side authentication script
- * @returns JSX element containing the client-side script
- */
-const AuthClientScript = () => {
-  return (
-    <>
-      <script src='/auth-client-bundle.js'></script>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-        let userEmail = '';
-        
-        document.addEventListener('DOMContentLoaded', function() {
-          const otpForm = document.getElementById('otpForm');
-          const verifyForm = document.getElementById('verifyForm');
-          const signOutBtn = document.getElementById('signOutBtn');
-          
-          if (otpForm) {
-            otpForm.addEventListener('submit', async function(event) {
-              event.preventDefault();
-              const emailInput = document.getElementById('email');
-              userEmail = emailInput.value;
-              
-              try {
-                // Use the auth client to send OTP
-                const success = await window.authClient.sendOTP(userEmail);
-                
-                if (success) {
-                  document.getElementById('otpVerify').style.display = 'block';
-                  document.getElementById('otpForm').style.display = 'none';
-                } else {
-                  alert('Failed to send OTP. Please try again.');
-                }
-              } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-              }
-            });
-          }
-          
-          if (verifyForm) {
-            verifyForm.addEventListener('submit', async function(event) {
-              event.preventDefault();
-              const otpInput = document.getElementById('otp');
-              const otp = otpInput.value;
-              
-              try {
-                // Use the auth client to verify OTP
-                console.log('Verifying OTP...');
-                const success = await window.authClient.verifyOTP(userEmail, otp);
-                console.log('OTP verification result:', success);
-                
-                if (success) {
-                  window.location.reload();
-                } else {
-                  alert('Invalid OTP. Please try again.');
-                }
-              } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-              }
-            });
-          }
-          
-          if (signOutBtn) {
-            signOutBtn.addEventListener('click', async function() {
-              try {
-                // Use the auth client to sign out
-                const success = await window.authClient.signOut();
-                
-                if (success) {
-                  window.location.reload();
-                } else {
-                  alert('Failed to sign out. Please try again.');
-                }
-              } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-              }
-            });
-          }
-        });
-      `,
-        }}
-      ></script>
-    </>
-  );
-};
+  )
+}
 
 /**
  * Protected content view for authenticated users
@@ -201,8 +112,8 @@ const ProtectedContent = ({ session }: AuthenticatedViewProps) => {
         <a href='/'>Back to Home</a>
       </p>
     </div>
-  );
-};
+  )
+}
 
 /**
  * Unauthorized content view for unauthenticated users
@@ -216,8 +127,8 @@ const UnauthorizedContent = () => {
         <a href='/'>Back to Home</a>
       </p>
     </div>
-  );
-};
+  )
+}
 
 // Home route - accessible to everyone
 app.get('/', (c: Context) => {
@@ -228,7 +139,6 @@ app.get('/', (c: Context) => {
     <div>
       <h1>Authentication Example with Better Auth Email OTP</h1>
       {isLoggedIn ? <AuthenticatedView session={session} /> : <LoginForm />}
-      <AuthClientScript />
     </div>
   )
 })
@@ -239,7 +149,214 @@ app.get('/protected', (c: Context) => {
   return c.render(
     <div>
       <h3>Protected Page</h3>
-      {session?.user ? <ProtectedContent session={session} /> : <UnauthorizedContent />}
+      {session?.user ? (
+        <ProtectedContent session={session} />
+      ) : (
+        <UnauthorizedContent />
+      )}
+    </div>
+  )
+})
+
+/**
+ * Start OTP verification process
+ * Receives email in the request body and redirects to the await-code page
+ */
+app.post('/api/my-auth/start-otp', async (c) => {
+  try {
+    const { email } = await c.req.parseBody()
+
+    if (!email || typeof email !== 'string') {
+      return c.json({ error: 'Email is required' }, 400)
+    }
+
+    // Store email in session or send OTP via Better Auth
+    // Create a request to the Better Auth API with JSON body
+    const url = new URL('/api/auth/email-otp/send-verification-otp', c.req.url)
+
+    // Convert headers to an object
+    const headerEntries: [string, string][] = []
+    c.req.raw.headers.forEach((value, key) => {
+      headerEntries.push([key, value])
+    })
+
+    const req = new Request(url.toString(), {
+      method: 'POST',
+      headers: {
+        ...Object.fromEntries(headerEntries),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        type: 'sign-in',
+      }),
+    })
+
+    // Call the Better Auth handler
+    const response = await auth.handler(req)
+
+    // Check if the request was successful
+    if (response.status !== 200) {
+      const responseText = await response.text()
+      console.error('Error response:', responseText)
+      return c.json({ error: 'Failed to send OTP' }, 500)
+    }
+
+    // Redirect to the await-code page
+    return c.redirect(
+      '/api/my-auth/await-code?email=' + encodeURIComponent(email),
+      302
+    )
+  } catch (error) {
+    console.error('Start OTP error:', error)
+    return c.json({ error: 'Failed to start OTP process' }, 500)
+  }
+})
+
+/**
+ * Finish OTP verification process
+ * Receives email and OTP in the request body and redirects to the home page
+ */
+app.post('/api/my-auth/finish-otp', async (c) => {
+  try {
+    const { email, otp } = await c.req.parseBody()
+
+    if (!email || typeof email !== 'string') {
+      return c.json({ error: 'Email is required' }, 400)
+    }
+
+    if (!otp || typeof otp !== 'string') {
+      return c.json({ error: 'OTP is required' }, 400)
+    }
+
+    // Create a request to the Better Auth API with JSON body
+    const url = new URL('/api/auth/sign-in/email-otp', c.req.url)
+
+    // Convert headers to an object
+    const headerEntries: [string, string][] = []
+    c.req.raw.headers.forEach((value, key) => {
+      headerEntries.push([key, value])
+    })
+
+    const req = new Request(url.toString(), {
+      method: 'POST',
+      headers: {
+        ...Object.fromEntries(headerEntries),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        otp,
+      }),
+    })
+
+    // Call the Better Auth handler directly
+    const response = await auth.handler(req)
+
+    // Check if the request was successful
+    if (response.status !== 200) {
+      const responseText = await response.text()
+      console.error('Error response:', responseText)
+      return c.json({ error: 'Invalid OTP or verification failed' }, 400)
+    }
+
+    // Copy all headers from the Better Auth response to our response
+    const responseHeaderEntries: [string, string][] = []
+    response.headers.forEach((value, key) => {
+      responseHeaderEntries.push([key, value])
+    })
+
+    // Redirect to protected page with the same headers
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...Object.fromEntries(responseHeaderEntries),
+        Location: '/protected',
+      },
+    })
+  } catch (error) {
+    console.error('Finish OTP error:', error)
+    return c.json({ error: 'Failed to verify OTP' }, 500)
+  }
+})
+
+/**
+ * Sign out the user
+ */
+app.post('/api/my-auth/sign-out', async (c) => {
+  try {
+    // Create a request to the Better Auth API
+    const url = new URL('/api/auth/sign-out', c.req.url)
+
+    // Convert headers to an object
+    const headerEntries: [string, string][] = []
+    c.req.raw.headers.forEach((value, key) => {
+      headerEntries.push([key, value])
+    })
+
+    const req = new Request(url.toString(), {
+      method: 'POST',
+      headers: Object.fromEntries(headerEntries),
+    })
+
+    // Call the Better Auth handler directly
+    const response = await auth.handler(req)
+
+    // Check if the request was successful
+    if (response.status !== 200) {
+      const responseText = await response.text()
+      console.error('Error response:', responseText)
+      return c.json({ error: 'Failed to sign out' }, 500)
+    }
+
+    // Copy all headers from the Better Auth response to our response
+    const responseHeaderEntries: [string, string][] = []
+    response.headers.forEach((value, key) => {
+      responseHeaderEntries.push([key, value])
+    })
+
+    // Redirect to home page with the same headers
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...Object.fromEntries(responseHeaderEntries),
+        Location: '/',
+      },
+    })
+  } catch (error) {
+    console.error('Sign out error:', error)
+    return c.json({ error: 'Failed to sign out' }, 500)
+  }
+})
+
+/**
+ * Await code page
+ * Displays a form to enter the OTP code
+ */
+app.get('/api/my-auth/await-code', (c) => {
+  const email = c.req.query('email') || ''
+
+  return c.render(
+    <div>
+      <h2>Enter Verification Code</h2>
+      <p>We've sent a verification code to {email}.</p>
+      <form action='/api/my-auth/finish-otp' method='post'>
+        <input type='hidden' name='email' value={email} />
+        <div>
+          <label htmlFor='otp'>Verification Code:</label>
+          <input
+            type='text'
+            id='otp'
+            name='otp'
+            placeholder='Enter code'
+            required
+          />
+        </div>
+        <button type='submit'>Verify</button>
+      </form>
+      <p>
+        <a href='/'>Cancel</a>
+      </p>
     </div>
   )
 })

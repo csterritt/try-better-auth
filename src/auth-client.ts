@@ -3,8 +3,8 @@ import { emailOTPClient } from 'better-auth/client/plugins'
 
 // Initialize the Better Auth client
 export const authClient = createAuthClient({
-  // Define the base URL for our authentication API (default: /api/auth)
-  baseURL: '/api/auth',
+  // Define the base URL for our authentication API with hardcoded localhost URL
+  baseURL: 'http://localhost:3000/api/auth',
   
   // Include the required plugins
   plugins: [emailOTPClient()],
