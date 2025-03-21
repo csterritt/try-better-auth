@@ -69,7 +69,7 @@ const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
     <div>
       <p>Welcome, {userEmail}!</p>
       <p>You are logged in.</p>
-      <form action='/api/my-auth/sign-out' method='post'>
+      <form action='/api/serv-auth/sign-out' method='post'>
         <button type='submit'>Sign Out</button>
       </form>
       <a href='/protected'>Go to protected page</a>
@@ -85,7 +85,7 @@ const LoginForm = () => {
   return (
     <div>
       <h4>Login with OTP</h4>
-      <form action='/api/my-auth/start-otp' method='post'>
+      <form action='/api/serv-auth/start-otp' method='post'>
         <input
           type='email'
           id='email'
@@ -162,7 +162,7 @@ app.get('/protected', (c: Context) => {
  * Start OTP verification process
  * Receives email in the request body and redirects to the await-code page
  */
-app.post('/api/my-auth/start-otp', async (c) => {
+app.post('/api/serv-auth/start-otp', async (c) => {
   try {
     const { email } = await c.req.parseBody()
 
@@ -204,7 +204,7 @@ app.post('/api/my-auth/start-otp', async (c) => {
 
     // Redirect to the await-code page
     return c.redirect(
-      '/api/my-auth/await-code?email=' + encodeURIComponent(email),
+      '/api/serv-auth/await-code?email=' + encodeURIComponent(email),
       302
     )
   } catch (error) {
@@ -217,7 +217,7 @@ app.post('/api/my-auth/start-otp', async (c) => {
  * Finish OTP verification process
  * Receives email and OTP in the request body and redirects to the home page
  */
-app.post('/api/my-auth/finish-otp', async (c) => {
+app.post('/api/serv-auth/finish-otp', async (c) => {
   try {
     const { email, otp } = await c.req.parseBody()
 
@@ -283,7 +283,7 @@ app.post('/api/my-auth/finish-otp', async (c) => {
 /**
  * Sign out the user
  */
-app.post('/api/my-auth/sign-out', async (c) => {
+app.post('/api/serv-auth/sign-out', async (c) => {
   try {
     // Create a request to the Better Auth API
     const url = new URL('/api/auth/sign-out', c.req.url)
@@ -333,14 +333,14 @@ app.post('/api/my-auth/sign-out', async (c) => {
  * Await code page
  * Displays a form to enter the OTP code
  */
-app.get('/api/my-auth/await-code', (c) => {
+app.get('/api/serv-auth/await-code', (c) => {
   const email = c.req.query('email') || ''
 
   return c.render(
     <div>
       <h2>Enter Verification Code</h2>
       <p>We've sent a verification code to {email}.</p>
-      <form action='/api/my-auth/finish-otp' method='post'>
+      <form action='/api/serv-auth/finish-otp' method='post'>
         <input type='hidden' name='email' value={email} />
         <div>
           <label htmlFor='otp'>Verification Code:</label>
