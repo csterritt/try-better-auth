@@ -11,35 +11,17 @@ type FormDataType = {
 const authRoutes = new Hono()
 
 /**
- * Helper function to redirect to home with an error cookie
- * @param errorMessage - The error message to display
- * @returns Response object with redirect and cookie
- */
-function redirectWithHomeError(errorMessage: string): Response {
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: '/',
-      'Set-Cookie': `ERROR_FOUND=${encodeURIComponent(errorMessage)}; Path=/; HttpOnly; SameSite=Strict`,
-    },
-  })
-}
-
-/**
- * Helper function to redirect to await-code with an error cookie
- * @param c - Hono context
- * @param email - User email
+ * Helper function to redirect with an error cookie
+ * @param c - Hono context (unused but kept for consistency)
+ * @param redirectUrl - URL to redirect to
  * @param errorMessage - The error message to display
  * @returns Response object with redirect and cookie
  */
 function redirectWithError(
   c: Context,
-  email: string,
+  redirectUrl: string,
   errorMessage: string
 ): Response {
-  const encodedEmail = encodeURIComponent(email || '')
-  const redirectUrl = `/api/serv-auth/await-code?email=${encodedEmail}`
-
   return new Response(null, {
     status: 302,
     headers: {
@@ -60,7 +42,7 @@ authRoutes.on(['POST', 'GET'], '/api/auth/*', async (c: Context) => {
 
     // If this is a POST request, try to redirect to home with error
     if (c.req.method === 'POST') {
-      return redirectWithHomeError('Authentication failed')
+      return redirectWithError(c, '/', 'Authentication failed')
     }
 
     // Otherwise return JSON error (fallback for API calls)
@@ -78,7 +60,7 @@ authRoutes.post('/api/serv-auth/start-otp', async (c: Context) => {
     const email = formData.email as string | undefined
 
     if (!email || typeof email !== 'string') {
-      return redirectWithHomeError('Email is required')
+      return redirectWithError(c, '/', 'Email is required')
     }
 
     // Create a request to the Better Auth API with JSON body
@@ -109,7 +91,7 @@ authRoutes.post('/api/serv-auth/start-otp', async (c: Context) => {
     if (response.status !== 200) {
       const responseText = await response.text()
       console.error('Error response:', responseText)
-      return redirectWithHomeError('Failed to send OTP')
+      return redirectWithError(c, '/', 'Failed to send OTP')
     }
 
     // Redirect to the await-code page
@@ -119,7 +101,7 @@ authRoutes.post('/api/serv-auth/start-otp', async (c: Context) => {
     )
   } catch (error) {
     console.error('Start OTP error:', error)
-    return redirectWithHomeError('Failed to start OTP process')
+    return redirectWithError(c, '/', 'Failed to start OTP process')
   }
 })
 
@@ -134,11 +116,11 @@ authRoutes.post('/api/serv-auth/finish-otp', async (c: Context) => {
     const otp = formData.otp as string | undefined
 
     if (!email || typeof email !== 'string') {
-      return redirectWithError(c, email || '', 'Email is required')
+      return redirectWithError(c, `/api/serv-auth/await-code?email=${encodeURIComponent(email || '')}`, 'Email is required')
     }
 
     if (!otp || typeof otp !== 'string') {
-      return redirectWithError(c, email, 'OTP is required')
+      return redirectWithError(c, `/api/serv-auth/await-code?email=${encodeURIComponent(email)}`, 'OTP is required')
     }
 
     // Create a request to the Better Auth API with JSON body
@@ -169,7 +151,7 @@ authRoutes.post('/api/serv-auth/finish-otp', async (c: Context) => {
     if (response.status !== 200) {
       const responseText = await response.text()
       console.error('Error response:', responseText)
-      return redirectWithError(c, email, 'Invalid OTP or verification failed')
+      return redirectWithError(c, `/api/serv-auth/await-code?email=${encodeURIComponent(email)}`, 'Invalid OTP or verification failed')
     }
 
     // Copy all headers from the Better Auth response to our response
@@ -191,9 +173,9 @@ authRoutes.post('/api/serv-auth/finish-otp', async (c: Context) => {
     try {
       const formData: FormDataType = await c.req.parseBody()
       const email = (formData.email as string | undefined) || ''
-      return redirectWithError(c, email, 'Failed to verify OTP')
+      return redirectWithError(c, `/api/serv-auth/await-code?email=${encodeURIComponent(email)}`, 'Failed to verify OTP')
     } catch {
-      return redirectWithHomeError('Failed to verify OTP')
+      return redirectWithError(c, '/', 'Failed to verify OTP')
     }
   }
 })
@@ -224,7 +206,7 @@ authRoutes.post('/api/serv-auth/sign-out', async (c: Context) => {
     if (response.status !== 200) {
       const responseText = await response.text()
       console.error('Error response:', responseText)
-      return redirectWithHomeError('Failed to sign out')
+      return redirectWithError(c, '/', 'Failed to sign out')
     }
 
     // Copy all headers from the Better Auth response to our response
@@ -243,7 +225,7 @@ authRoutes.post('/api/serv-auth/sign-out', async (c: Context) => {
     })
   } catch (error) {
     console.error('Sign out error:', error)
-    return redirectWithHomeError('Failed to sign out')
+    return redirectWithError(c, '/', 'Failed to sign out')
   }
 })
 
