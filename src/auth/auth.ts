@@ -2,7 +2,8 @@ import { betterAuth } from 'better-auth'
 import { emailOTP } from 'better-auth/plugins'
 
 // Check if we're in production (for cookie security)
-const isProduction = import.meta.env?.MODE === 'production'
+// Using process.env.NODE_ENV as a more standard approach
+const isProduction = process.env.NODE_ENV === 'production'
 
 // Create the Better Auth instance with the simplest configuration
 export const auth = betterAuth({

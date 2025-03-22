@@ -1,5 +1,5 @@
 import { Context, Next } from 'hono'
-import { auth } from './auth'
+import { auth } from './auth/auth'
 
 // Define interface for session data
 interface User {

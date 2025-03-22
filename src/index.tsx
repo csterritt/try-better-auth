@@ -5,7 +5,7 @@ import { getCookie, deleteCookie } from 'hono/cookie'
 
 import { renderer } from './renderer'
 import { authMiddleware } from './middleware'
-import { authRoutes } from './auth-routes'
+import { authRoutes } from './auth/auth-routes'
 
 // Define a session type to match what Better Auth will provide
 interface User {
