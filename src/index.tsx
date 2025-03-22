@@ -3,7 +3,6 @@ import { showRoutes } from 'hono/dev'
 import { logger } from 'hono/logger'
 
 import { renderer } from './renderer'
-import { auth } from './auth'
 import { authMiddleware } from './middleware'
 import { authRoutes } from './auth-routes'
 
