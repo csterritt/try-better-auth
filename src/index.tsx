@@ -1,6 +1,7 @@
 import { Hono, Context } from 'hono'
 import { showRoutes } from 'hono/dev'
 import { logger } from 'hono/logger'
+import { getCookie, deleteCookie } from 'hono/cookie'
 
 import { renderer } from './renderer'
 import { authMiddleware } from './middleware'
@@ -126,9 +127,22 @@ app.get('/', (c: Context) => {
   const session = c.get('session')
   const isLoggedIn = !!session?.user
 
+  // Check for error cookie using Hono's getCookie
+  const errorMessage = getCookie(c, 'ERROR_FOUND')
+
+  // Clear the error cookie if it exists using Hono's deleteCookie
+  if (errorMessage) {
+    deleteCookie(c, 'ERROR_FOUND', { path: '/' })
+  }
+
   return c.render(
     <div>
       <h1>Authentication Example with Better Auth Email OTP</h1>
+      {errorMessage && (
+        <div style={{ color: 'red', marginBottom: '15px' }}>
+          Error: {errorMessage}
+        </div>
+      )}
       {isLoggedIn ? <AuthenticatedView session={session} /> : <LoginForm />}
     </div>
   )

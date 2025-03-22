@@ -4,7 +4,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:client": "vite build --config vite.client.config.ts",
     "preview": "wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy"
   },
