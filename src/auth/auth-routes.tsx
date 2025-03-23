@@ -2,7 +2,7 @@ import { Hono, Context } from 'hono'
 import { getCookie, deleteCookie } from 'hono/cookie'
 
 import { auth } from './auth'
-import { PATHS, COOKIES, REDIRECTS } from '../constants'
+import { PATHS, COOKIES, REDIRECTS, VALIDATION } from '../constants'
 
 // Define a type for form data from parseBody
 type FormDataType = {
@@ -69,6 +69,15 @@ authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
       return redirectWithError(c, PATHS.HOME, 'Email is required')
     }
 
+    // Validate email format
+    if (!VALIDATION.EMAIL_REGEX.test(email)) {
+      return redirectWithError(
+        c,
+        PATHS.HOME,
+        'Please enter a valid email address'
+      )
+    }
+
     // Create a request to the Better Auth API with JSON body
     const url = new URL(PATHS.AUTH.CLIENT.SEND_OTP, c.req.url)
 
@@ -126,6 +135,15 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
         c,
         `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email || '')}`,
         'Email is required'
+      )
+    }
+
+    // Validate email format
+    if (!VALIDATION.EMAIL_REGEX.test(email)) {
+      return redirectWithError(
+        c,
+        PATHS.HOME,
+        'Please enter a valid email address'
       )
     }
 
@@ -267,9 +285,11 @@ authRoutes.get(PATHS.AUTH.SERVER.AWAIT_CODE, (c: Context) => {
   }
 
   return c.render(
-    <div>
+    <div data-testid='await-code-page-banner'>
       <h2>Enter Verification Code</h2>
-      <p>We've sent a verification code to {email}.</p>
+      <p data-testid='please-enter-code-message'>
+        Please enter the code sent to {email}
+      </p>
       {errorMessage && (
         <div style={{ color: 'red', marginBottom: '15px' }}>
           Error: {errorMessage}
@@ -290,7 +310,9 @@ authRoutes.get(PATHS.AUTH.SERVER.AWAIT_CODE, (c: Context) => {
         <button type='submit'>Verify</button>
       </form>
       <p>
-        <a href={PATHS.HOME}>Cancel</a>
+        <a href={PATHS.HOME} data-testid='cancel-sign-in-link'>
+          Cancel
+        </a>
       </p>
     </div>
   )

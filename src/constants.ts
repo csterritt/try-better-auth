@@ -54,6 +54,12 @@ export const COOKIES = {
   ERROR_FOUND: 'ERROR_FOUND',
 }
 
+// Validation patterns
+export const VALIDATION = {
+  // Email validation regex
+  EMAIL_REGEX: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+}
+
 // Default redirect paths
 export const REDIRECTS = {
   // After successful authentication

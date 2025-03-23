@@ -1,4 +1,5 @@
 import { Hono, Context } from 'hono'
+import { Fragment } from 'hono/jsx'
 import { getCookie, deleteCookie } from 'hono/cookie'
 import { showRoutes } from 'hono/dev'
 import { logger } from 'hono/logger'
@@ -6,7 +7,7 @@ import { logger } from 'hono/logger'
 import { renderer } from './renderer'
 import { authMiddleware } from './middleware'
 import { authRoutes } from './auth/auth-routes'
-import { PATHS, COOKIES } from './constants'
+import { PATHS, COOKIES, VALIDATION } from './constants'
 
 // Define a session type to match what Better Auth will provide
 interface User {
@@ -80,15 +81,23 @@ const LoginForm = () => {
   return (
     <div>
       <h4>Sign in with OTP</h4>
-      <form action={PATHS.AUTH.SERVER.START_OTP} method='post'>
+      <form
+        action={PATHS.AUTH.SERVER.START_OTP}
+        method='post'
+        data-testid='sign-in-form'
+      >
         <input
           type='email'
           id='email'
           name='email'
           placeholder='Email'
           required
+          pattern={VALIDATION.EMAIL_REGEX.source}
+          title="Please enter a valid email address"
         />
-        <button type='submit'>Send OTP</button>
+        <button type='submit' data-testid='submit'>
+          Send OTP
+        </button>
       </form>
     </div>
   )
@@ -139,11 +148,11 @@ app.get(PATHS.HOME, (c: Context) => {
   }
 
   return c.render(
-    <div>
+    <div data-testid='startup-page-banner'>
       <h3>Authentication Example with Better Auth Email OTP</h3>
       {errorMessage && (
-        <div style={{ color: 'red', marginBottom: '15px' }}>
-          Error: {errorMessage}
+        <div role='alert' style={{ color: 'red', marginBottom: '15px' }}>
+          {errorMessage}
         </div>
       )}
       {isLoggedIn ? <AuthenticatedView session={session} /> : <LoginForm />}
@@ -165,6 +174,25 @@ app.get(PATHS.PROTECTED, (c: Context) => {
     </div>
   )
 })
+
+// MUST be the last path declared
+app.all('/*', (c: Context) =>
+  c.render(
+    <Fragment>
+      <div class='flex-grow mx-6' data-testid='404-page-banner'>
+        <p class='text-2xl italic my-6' data-testid='404-message'>
+          That page does not exist
+        </p>
+
+        <p>
+          <a href={PATHS.HOME} class='btn btn-primary' data-testid='root-link'>
+            Return home
+          </a>
+        </p>
+      </div>
+    </Fragment>
+  )
+)
 
 showRoutes(app)
 
