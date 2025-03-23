@@ -1,11 +1,12 @@
 import { Hono, Context } from 'hono'
+import { getCookie, deleteCookie } from 'hono/cookie'
 import { showRoutes } from 'hono/dev'
 import { logger } from 'hono/logger'
-import { getCookie, deleteCookie } from 'hono/cookie'
 
 import { renderer } from './renderer'
 import { authMiddleware } from './middleware'
 import { authRoutes } from './auth/auth-routes'
+import { PATHS, COOKIES } from './constants'
 
 // Define a session type to match what Better Auth will provide
 interface User {
@@ -60,11 +61,13 @@ const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
   return (
     <div>
       <p>Welcome, {userEmail}!</p>
-      <p>You are logged in.</p>
-      <form action='/api/serv-auth/sign-out' method='post'>
+      <p>You are now signed in.</p>
+      <p>
+        <a href={PATHS.PROTECTED}>Go to Protected Page</a>
+      </p>
+      <form action={PATHS.AUTH.SERVER.SIGN_OUT} method='post'>
         <button type='submit'>Sign Out</button>
       </form>
-      <a href='/protected'>Go to protected page</a>
     </div>
   )
 }
@@ -76,8 +79,8 @@ const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
 const LoginForm = () => {
   return (
     <div>
-      <h4>Login with OTP</h4>
-      <form action='/api/serv-auth/start-otp' method='post'>
+      <h4>Sign in with OTP</h4>
+      <form action={PATHS.AUTH.SERVER.START_OTP} method='post'>
         <input
           type='email'
           id='email'
@@ -101,7 +104,7 @@ const ProtectedContent = ({ session }: AuthenticatedViewProps) => {
     <div>
       <p>Welcome to the protected page, {session?.user?.email || 'User'}!</p>
       <p>
-        <a href='/'>Back to Home</a>
+        <a href={PATHS.HOME}>Back to Home</a>
       </p>
     </div>
   )
@@ -114,30 +117,30 @@ const ProtectedContent = ({ session }: AuthenticatedViewProps) => {
 const UnauthorizedContent = () => {
   return (
     <div>
-      <p>You need to be logged in to view this page.</p>
+      <p>You need to be signed in to view this page.</p>
       <p>
-        <a href='/'>Back to Home</a>
+        <a href={PATHS.HOME}>Back to Home</a>
       </p>
     </div>
   )
 }
 
 // Home route - accessible to everyone
-app.get('/', (c: Context) => {
+app.get(PATHS.HOME, (c: Context) => {
   const session = c.get('session')
   const isLoggedIn = !!session?.user
 
   // Check for error cookie using Hono's getCookie
-  const errorMessage = getCookie(c, 'ERROR_FOUND')
+  const errorMessage = getCookie(c, COOKIES.ERROR_FOUND)
 
   // Clear the error cookie if it exists using Hono's deleteCookie
   if (errorMessage) {
-    deleteCookie(c, 'ERROR_FOUND', { path: '/' })
+    deleteCookie(c, COOKIES.ERROR_FOUND, { path: '/' })
   }
 
   return c.render(
     <div>
-      <h1>Authentication Example with Better Auth Email OTP</h1>
+      <h3>Authentication Example with Better Auth Email OTP</h3>
       {errorMessage && (
         <div style={{ color: 'red', marginBottom: '15px' }}>
           Error: {errorMessage}
@@ -149,7 +152,7 @@ app.get('/', (c: Context) => {
 })
 
 // Protected route - only accessible to authenticated users
-app.get('/protected', (c: Context) => {
+app.get(PATHS.PROTECTED, (c: Context) => {
   const session = c.get('session')
   return c.render(
     <div>

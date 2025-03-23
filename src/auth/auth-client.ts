@@ -1,11 +1,12 @@
 import { createAuthClient } from 'better-auth/client'
 import { emailOTPClient } from 'better-auth/client/plugins'
+import { HOST, PATHS } from '../constants'
 
 // Initialize the Better Auth client
 export const authClient = createAuthClient({
   // Define the base URL for our authentication API with hardcoded localhost URL
-  baseURL: 'http://localhost:3000/api/auth',
-  
+  baseURL: `${HOST}${PATHS.AUTH.API_BASE}`,
+
   // Include the required plugins
   plugins: [emailOTPClient()],
 })
@@ -22,7 +23,7 @@ export const sendOTP = async (email: string): Promise<boolean> => {
       email,
       type: 'sign-in',
     })
-    
+
     // Check if the request was successful
     return !error
   } catch (error) {
@@ -32,14 +33,17 @@ export const sendOTP = async (email: string): Promise<boolean> => {
 }
 
 // Verify the OTP and sign in the user
-export const verifyOTP = async (email: string, otp: string): Promise<boolean> => {
+export const verifyOTP = async (
+  email: string,
+  otp: string
+): Promise<boolean> => {
   try {
     // Use the Email OTP client to verify and sign in
     const { error } = await authClient.signIn.emailOtp({
       email,
       otp,
     })
-    
+
     // Check if the sign-in was successful
     return !error
   } catch (error) {
@@ -53,7 +57,7 @@ export const signOut = async (): Promise<boolean> => {
   try {
     // Use the auth client to sign out
     const { error } = await authClient.signOut()
-    
+
     // Check if the sign-out was successful
     return !error
   } catch (error) {
