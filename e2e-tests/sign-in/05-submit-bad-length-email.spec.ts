@@ -15,7 +15,6 @@ test('submitting a too-short email fails', async ({ page }) => {
 
   // Submit too short email and verify failure
   await submitInvalidEmail(page, 'a@b.c')
-  await cancelSignIn(page)
   await verifyOnStartupPage(page)
 })
 
@@ -28,6 +27,5 @@ test('submitting a too-long email fails', async ({ page }) => {
   // Submit too long email and verify failure
   const longEmail = 'a'.repeat(250) + '@example.com'
   await submitInvalidEmail(page, longEmail)
-  await cancelSignIn(page)
   await verifyOnStartupPage(page)
 })

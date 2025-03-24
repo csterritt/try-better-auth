@@ -52,6 +52,8 @@ export const PATHS = {
 export const COOKIES = {
   // Error message cookie
   ERROR_FOUND: 'ERROR_FOUND',
+  // Email entered cookie
+  EMAIL_ENTERED: 'EMAIL_ENTERED',
 }
 
 // Validation patterns

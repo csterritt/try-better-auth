@@ -77,7 +77,10 @@ const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
  * Renders the login form for unauthenticated users
  * @returns JSX element for the login form
  */
-const LoginForm = () => {
+const LoginForm = ({ c }: { c: Context }) => {
+  // Get the email from cookie if it exists
+  const emailFromCookie = getCookie(c, COOKIES.EMAIL_ENTERED) || ''
+
   return (
     <div>
       <h4>Sign in with OTP</h4>
@@ -92,8 +95,9 @@ const LoginForm = () => {
           name='email'
           placeholder='Email'
           required
-          pattern={VALIDATION.EMAIL_REGEX.source}
-          title="Please enter a valid email address"
+          title='Please enter a valid email address'
+          value={emailFromCookie}
+          data-testid='email-input'
         />
         <button type='submit' data-testid='submit'>
           Send OTP
@@ -155,7 +159,11 @@ app.get(PATHS.HOME, (c: Context) => {
           {errorMessage}
         </div>
       )}
-      {isLoggedIn ? <AuthenticatedView session={session} /> : <LoginForm />}
+      {isLoggedIn ? (
+        <AuthenticatedView session={session} />
+      ) : (
+        <LoginForm c={c} />
+      )}
     </div>
   )
 })
