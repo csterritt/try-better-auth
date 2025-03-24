@@ -76,3 +76,7 @@ export const REDIRECTS = {
   // After error
   AFTER_ERROR: PATHS.HOME,
 }
+
+// Check if we're in production (for cookie security)
+// Using process.env.NODE_ENV as a more standard approach
+export const IS_PRODUCTION = process.env.NODE_ENV === 'production'

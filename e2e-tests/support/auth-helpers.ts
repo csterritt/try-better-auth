@@ -5,7 +5,6 @@ import {
   verifyOnSignInPage,
   verifyOnAwaitCodePage,
   verifyOnPodsListPage,
-  verifyOnPodsSearchResultsPage,
 } from './page-verifiers'
 
 export async function signOutAndVerify(page: Page) {

@@ -1,8 +1,15 @@
 import { Hono, Context } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
+import fs from 'fs'
 
 import { auth } from './auth'
-import { PATHS, COOKIES, REDIRECTS, VALIDATION } from '../constants'
+import {
+  PATHS,
+  COOKIES,
+  REDIRECTS,
+  VALIDATION,
+  IS_PRODUCTION,
+} from '../constants'
 
 // Define a type for form data from parseBody
 type FormDataType = {
@@ -163,10 +170,10 @@ authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
 authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
   try {
     const formData: FormDataType = await c.req.parseBody()
-    const email = formData.email as string | undefined
-    const otp = formData.otp as string | undefined
+    let email = formData.email as string | undefined
+    let otp = formData.otp as string | undefined
 
-    if (!email || typeof email !== 'string') {
+    if (!email) {
       return redirectWithError(
         c,
         `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email || '')}`,
@@ -176,7 +183,8 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
     }
 
     // Validate email format
-    if (!VALIDATION.EMAIL_REGEX.test(email)) {
+    email = email.trim()
+    if (!VALIDATION.EMAIL_REGEX.test(email) || email.length > 254) {
       return redirectWithError(
         c,
         PATHS.HOME,
@@ -185,7 +193,7 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
       )
     }
 
-    if (!otp || typeof otp !== 'string' || otp.trim().length !== 6) {
+    if (!otp || otp.trim().length !== 6) {
       return redirectWithError(
         c,
         `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
@@ -194,12 +202,37 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
       )
     }
 
+    // In development mode, read OTP from file
+    otp = otp.trim()
+    if (!IS_PRODUCTION && otp === '123456') {
+      try {
+        const fileOtp = fs.readFileSync('/tmp/otp.txt', 'utf8').trim()
+        console.log(
+          'Using OTP from file:',
+          fileOtp,
+          'instead of user-provided OTP:',
+          otp
+        )
+        otp = fileOtp
+      } catch (fileError) {
+        console.error('Error reading OTP from file:', fileError)
+        // Continue with user-provided OTP if file read fails
+      }
+    }
+
     // Create a request to the Better Auth API with JSON body
     const url = new URL(PATHS.AUTH.CLIENT.SIGN_IN, c.req.url)
 
-    const response = await fetch(url.toString(), {
+    // Convert headers to an object
+    const headerEntries: [string, string][] = []
+    c.req.raw.headers.forEach((value, key) => {
+      headerEntries.push([key, value])
+    })
+
+    const req = new Request(url.toString(), {
       method: 'POST',
       headers: {
+        ...Object.fromEntries(headerEntries),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -207,6 +240,9 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
         otp,
       }),
     })
+
+    // Call the Better Auth handler directly
+    const response = await auth.handler(req)
 
     if (response.status !== 200) {
       const responseText = await response.text()
@@ -220,10 +256,9 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
     }
 
     // Copy all headers from the Better Auth response to our response
+    const responseHeaderEntries: [string, string][] = []
     response.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'set-cookie') {
-        c.header(key, value)
-      }
+      responseHeaderEntries.push([key, value])
     })
 
     // Clear the email cookie on successful login
@@ -233,6 +268,7 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
     return new Response(null, {
       status: 302,
       headers: {
+        ...Object.fromEntries(responseHeaderEntries),
         Location: REDIRECTS.AFTER_AUTH,
       },
     })
@@ -274,28 +310,44 @@ authRoutes.post(PATHS.AUTH.SERVER.SIGN_OUT, async (c: Context) => {
     // Create a request to the Better Auth API
     const url = new URL(PATHS.AUTH.CLIENT.SIGN_OUT, c.req.url)
 
-    // Call the Better Auth API to sign out
-    const response = await fetch(url.toString(), {
+    // Convert headers to an object
+    const headerEntries: [string, string][] = []
+    c.req.raw.headers.forEach((value, key) => {
+      headerEntries.push([key, value])
+    })
+
+    const req = new Request(url.toString(), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: c.req.header('cookie') || '',
-      },
+      headers: Object.fromEntries(headerEntries),
     })
 
-    // Copy all headers from the Better Auth response to our response
+    // Call the Better Auth handler directly
+    const response = await auth.handler(req)
+
+    // Check if the request was successful
+    if (response.status !== 200) {
+      const responseText = await response.text()
+      console.error('Error response:', responseText)
+      return redirectWithError(c, PATHS.HOME, 'Failed to sign out')
+    }
+
+    // Copy all headers from the Better Auth response to our response, clearing cookies
+    const responseHeaderEntries: [string, string][] = []
     response.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'set-cookie') {
-        c.header(key, value)
-      }
+      responseHeaderEntries.push([key, value])
     })
+    responseHeaderEntries.push(['set-cookie', 'EMAIL_SUBMITTED='])
 
-    // Clear our application cookies
-    deleteCookie(c, COOKIES.ERROR_FOUND)
     deleteCookie(c, COOKIES.EMAIL_ENTERED)
 
-    // Redirect to the home page
-    return c.redirect(REDIRECTS.AFTER_SIGN_OUT)
+    // Redirect to home page with the same headers
+    return new Response(null, {
+      status: 302,
+      headers: {
+        ...Object.fromEntries(responseHeaderEntries),
+        Location: REDIRECTS.AFTER_SIGN_OUT,
+      },
+    })
   } catch (error) {
     console.error('Sign out error:', error)
     return redirectWithError(c, PATHS.HOME, 'Failed to sign out')
