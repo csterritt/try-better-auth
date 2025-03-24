@@ -48,7 +48,7 @@ export async function cancelSignIn(page: Page) {
   await verifyOnStartupPage(page)
 }
 
-export async function submitInvalidCode(page: Page, code: string = '') {
+export async function submitInvalidCode(page: Page, code: string = ' ') {
   // Submit invalid code
   if (code) {
     await fillInput(page, 'code', code)

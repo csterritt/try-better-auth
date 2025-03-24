@@ -1,4 +1,4 @@
-import { test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 import {
   verifyOnStartupPage,
@@ -19,4 +19,7 @@ test('canceling code submission returns to startup page', async ({ page }) => {
   // Cancel sign in and verify return to startup
   await cancelSignIn(page)
   await verifyOnStartupPage(page)
+
+  // Verify email input has no value
+  await expect(page.getByTestId('email-input')).toHaveValue('')
 })

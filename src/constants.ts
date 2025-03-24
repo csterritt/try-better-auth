@@ -30,6 +30,9 @@ export const PATHS = {
       // Await code page
       AWAIT_CODE: '/api/serv-auth/await-code',
 
+      // Cancel OTP verification
+      CANCEL_OTP: '/api/serv-auth/cancel-otp',
+
       // Sign out
       SIGN_OUT: '/api/serv-auth/sign-out',
     },

@@ -185,11 +185,11 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
       )
     }
 
-    if (!otp || typeof otp !== 'string') {
+    if (!otp || typeof otp !== 'string' || otp.trim().length !== 6) {
       return redirectWithError(
         c,
         `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
-        'OTP is required',
+        "You must supply the code sent to your email address. Check your spam filter, and after a few minutes, if it hasn't arrived, click the 'Resend' button below to try again.",
         { [COOKIES.EMAIL_ENTERED]: email }
       )
     }
@@ -251,6 +251,18 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
       return redirectWithError(c, PATHS.HOME, 'Failed to verify OTP')
     }
   }
+})
+
+/**
+ * Cancel OTP verification process
+ * Clears the email cookie and redirects to the home page
+ */
+authRoutes.get(PATHS.AUTH.SERVER.CANCEL_OTP, (c: Context) => {
+  // Clear the email cookie
+  deleteCookie(c, COOKIES.EMAIL_ENTERED)
+
+  // Redirect to home
+  return c.redirect(PATHS.HOME, 302)
 })
 
 /**
@@ -318,8 +330,8 @@ authRoutes.get(PATHS.AUTH.SERVER.AWAIT_CODE, (c: Context) => {
         Please enter the code sent to {email}
       </p>
       {errorMessage && (
-        <div style={{ color: 'red', marginBottom: '15px' }}>
-          Error: {errorMessage}
+        <div style={{ color: 'red', marginBottom: '15px' }} role='alert'>
+          {errorMessage}
         </div>
       )}
       <form action={PATHS.AUTH.SERVER.FINISH_OTP} method='post'>
@@ -332,10 +344,15 @@ authRoutes.get(PATHS.AUTH.SERVER.AWAIT_CODE, (c: Context) => {
           required
           autoComplete='one-time-code'
         />
-        <button type='submit'>Verify</button>
+        <button type='submit' data-testid='submit'>
+          Verify
+        </button>
       </form>
       <p>
-        <a href={PATHS.HOME} data-testid='cancel-sign-in-link'>
+        <a
+          href={PATHS.AUTH.SERVER.CANCEL_OTP}
+          data-testid='cancel-sign-in-link'
+        >
           Cancel
         </a>
       </p>
