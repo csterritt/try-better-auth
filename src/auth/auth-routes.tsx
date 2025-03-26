@@ -103,7 +103,9 @@ authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
     const email = formData.email ?? ''
 
     // Store email in cookie for later use
-    setCookie(c, COOKIES.EMAIL_ENTERED, email.toString())
+    setCookie(c, COOKIES.EMAIL_ENTERED, email.toString(), {
+      path: '/',
+    })
 
     if (!email || typeof email !== 'string') {
       return redirectWithError(c, PATHS.HOME, 'Email is required', {
@@ -336,18 +338,26 @@ authRoutes.post(PATHS.AUTH.SERVER.SIGN_OUT, async (c: Context) => {
     response.headers.forEach((value, key) => {
       responseHeaderEntries.push([key, value])
     })
-    responseHeaderEntries.push(['set-cookie', 'EMAIL_SUBMITTED='])
-
-    deleteCookie(c, COOKIES.EMAIL_ENTERED)
 
     // Redirect to home page with the same headers
-    return new Response(null, {
+    const resp = new Response(null, {
       status: 302,
       headers: {
         ...Object.fromEntries(responseHeaderEntries),
         Location: REDIRECTS.AFTER_SIGN_OUT,
       },
     })
+
+    resp.headers.append(
+      'Set-Cookie',
+      `better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
+    )
+    resp.headers.append(
+      'Set-Cookie',
+      `${COOKIES.EMAIL_ENTERED}=; Path=/; Max-Age=0`
+    )
+
+    return resp
   } catch (error) {
     console.error('Sign out error:', error)
     return redirectWithError(c, PATHS.HOME, 'Failed to sign out')
