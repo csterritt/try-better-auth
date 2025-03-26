@@ -263,17 +263,22 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
       responseHeaderEntries.push([key, value])
     })
 
-    // Clear the email cookie on successful login
-    deleteCookie(c, COOKIES.EMAIL_ENTERED)
-
     // Redirect to protected page with the same headers
-    return new Response(null, {
+    const resp = new Response(null, {
       status: 302,
       headers: {
         ...Object.fromEntries(responseHeaderEntries),
         Location: REDIRECTS.AFTER_AUTH,
       },
     })
+
+    // Clear the email cookie
+    resp.headers.append(
+      'Set-Cookie',
+      `${COOKIES.EMAIL_ENTERED}=; Path=/; Max-Age=0`
+    )
+
+    return resp
   } catch (error) {
     console.error('Finish OTP error:', error)
     try {
