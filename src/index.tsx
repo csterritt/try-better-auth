@@ -73,7 +73,9 @@ const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
         <a href={PATHS.PROTECTED}>Go to Protected Page</a>
       </p>
       <form action={PATHS.AUTH.SERVER.SIGN_OUT} method='post'>
-        <button type='submit'>Sign Out</button>
+        <button type='submit' data-testid='sign-out-link'>
+          Sign Out
+        </button>
       </form>
     </div>
   )
@@ -120,25 +122,12 @@ const LoginForm = ({ c }: { c: Context }) => {
  */
 const ProtectedContent = ({ session }: AuthenticatedViewProps) => {
   return (
-    <div>
+    <div data-testid='protected-page-banner'>
       <p>Welcome to the protected page, {session?.user?.email || 'User'}!</p>
       <p>
-        <a href={PATHS.HOME}>Back to Home</a>
-      </p>
-    </div>
-  )
-}
-
-/**
- * Unauthorized content view for unauthenticated users
- * @returns JSX element for the unauthorized content
- */
-const UnauthorizedContent = () => {
-  return (
-    <div>
-      <p>You need to be signed in to view this page.</p>
-      <p>
-        <a href={PATHS.HOME}>Back to Home</a>
+        <a href={PATHS.HOME} data-testid='visit-home-link'>
+          Back to Home
+        </a>
       </p>
     </div>
   )
@@ -148,6 +137,14 @@ const UnauthorizedContent = () => {
 app.get(PATHS.HOME, (c: Context) => {
   const session = c.get('session')
   const isLoggedIn = !!session?.user
+
+  // Check for message cookie using Hono's getCookie
+  const message = getCookie(c, COOKIES.MESSAGE_FOUND)
+
+  // Clear the message cookie if it exists using Hono's deleteCookie
+  if (message) {
+    deleteCookie(c, COOKIES.MESSAGE_FOUND, { path: '/' })
+  }
 
   // Check for error cookie using Hono's getCookie
   const errorMessage = getCookie(c, COOKIES.ERROR_FOUND)
@@ -160,6 +157,11 @@ app.get(PATHS.HOME, (c: Context) => {
   return c.render(
     <div data-testid='startup-page-banner'>
       <h3>Authentication Example with Better Auth Email OTP</h3>
+      {message && (
+        <div role='alert' style={{ color: 'green', marginBottom: '15px' }}>
+          {message}
+        </div>
+      )}
       {errorMessage && (
         <div role='alert' style={{ color: 'red', marginBottom: '15px' }}>
           {errorMessage}
@@ -176,15 +178,39 @@ app.get(PATHS.HOME, (c: Context) => {
 
 // Protected route - only accessible to authenticated users
 app.get(PATHS.PROTECTED, (c: Context) => {
+  // Check for message cookie using Hono's getCookie
+  const message = getCookie(c, COOKIES.MESSAGE_FOUND)
+
+  // Clear the message cookie if it exists using Hono's deleteCookie
+  if (message) {
+    deleteCookie(c, COOKIES.MESSAGE_FOUND, { path: '/' })
+  }
+
+  // Check for error cookie using Hono's getCookie
+  const errorMessage = getCookie(c, COOKIES.ERROR_FOUND)
+
+  // Clear the error cookie if it exists using Hono's deleteCookie
+  if (errorMessage) {
+    deleteCookie(c, COOKIES.ERROR_FOUND, { path: '/' })
+  }
+
   const session = c.get('session')
   return c.render(
     <div>
       <h3>Protected Page</h3>
-      {session?.user ? (
-        <ProtectedContent session={session} />
-      ) : (
-        <UnauthorizedContent />
+      {message && (
+        <div role='alert' style={{ color: 'green', marginBottom: '15px' }}>
+          {message}
+        </div>
       )}
+
+      {errorMessage && (
+        <div role='alert' style={{ color: 'red', marginBottom: '15px' }}>
+          {errorMessage}
+        </div>
+      )}
+
+      <ProtectedContent session={session} />
     </div>
   )
 })

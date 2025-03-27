@@ -13,19 +13,13 @@ export async function verifyOnAwaitCodePage(page: Page) {
   expect(await elementExists(page, 'await-code-page-banner')).toBe(true)
 }
 
+export async function verifyOnProtectedPage(page: Page) {
+  expect(await elementExists(page, 'protected-page-banner')).toBe(true)
+}
+
 export async function verifyOn404Page(page: Page) {
   expect(await elementExists(page, '404-page-banner')).toBe(true)
   expect(await getElementText(page, '404-message')).toBe(
     'That page does not exist'
-  )
-}
-
-export async function verifyOnPodsListPage(page: Page) {
-  expect(await elementExists(page, 'pods-list-page-banner')).toBe(true)
-}
-
-export async function verifyOnPodsSearchResultsPage(page: Page) {
-  expect(await elementExists(page, 'pods-search-results-page-banner')).toBe(
-    true
   )
 }

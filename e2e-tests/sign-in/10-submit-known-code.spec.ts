@@ -7,6 +7,7 @@ import {
   submitValidCode,
   signOutAndVerify,
 } from '../support/auth-helpers'
+import { clickLink } from '../support/finders'
 
 test('submitting a valid email and code succeeds', async ({ page }) => {
   // Navigate to startup page and verify
@@ -21,5 +22,6 @@ test('submitting a valid email and code succeeds', async ({ page }) => {
   await submitValidCode(page, '123456')
 
   // Sign out to clean up the authenticated session
+  await clickLink(page, 'visit-home-link')
   await signOutAndVerify(page)
 })

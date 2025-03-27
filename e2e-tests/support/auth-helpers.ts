@@ -4,7 +4,7 @@ import {
   verifyOnStartupPage,
   verifyOnSignInPage,
   verifyOnAwaitCodePage,
-  verifyOnPodsListPage,
+  verifyOnProtectedPage,
 } from './page-verifiers'
 
 export async function signOutAndVerify(page: Page) {
@@ -70,8 +70,8 @@ export async function submitValidCode(page: Page, code: string) {
   await clickLink(page, 'submit')
   await verifyAlert(page, 'Sign in successful!')
 
-  // Verify we're on the pods list page after successful sign-in
-  await verifyOnPodsListPage(page)
+  // Verify we're on the protected page after successful sign-in
+  await verifyOnProtectedPage(page)
 }
 
 export async function submitTimedOutCode(page: Page, code: string) {
@@ -89,9 +89,9 @@ export async function submitBadCode(page: Page, code: string) {
   await fillInput(page, 'code', code)
   await clickLink(page, 'submit')
 
-  // Verify we're back on sign-in page with error
-  await verifyOnSignInPage(page)
-  await verifyAlert(page, 'Invalid verification code')
+  // Verify we're back on await code page with error
+  await verifyOnAwaitCodePage(page)
+  await verifyAlert(page, 'Invalid OTP or verification failed')
 }
 
 export async function submitExpiredCode(page: Page, code: string) {
