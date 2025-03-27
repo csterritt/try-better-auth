@@ -2,6 +2,7 @@ import { Hono, Context } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import fs from 'fs'
 
+import { Env } from '../cf-env'
 import { auth } from './auth'
 import {
   PATHS,
@@ -16,8 +17,7 @@ type FormDataType = {
   [key: string]: string | undefined | File
 }
 
-// Create a new Hono app instance for auth routes
-const authRoutes = new Hono()
+const authRoutes = new Hono<{ Bindings: Env }>()
 
 /**
  * Helper function to redirect with an error cookie
@@ -70,6 +70,22 @@ function redirectWithError(
   })
 }
 
+/**
+ * Helper function to verify client permission token
+ * @param c - Hono context
+ * @returns boolean indicating if the token is valid
+ */
+function verifyClientPermission(c: Context): boolean {
+  const authHeader = c.req.header('Authorization')
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return false
+  }
+
+  const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+  return token === c.env.CLIENT_PERMISSION
+}
+
 // Handle all Better Auth API routes
 // Using the correct app.on() method according to Better Auth docs
 authRoutes.on(
@@ -77,6 +93,17 @@ authRoutes.on(
   `${PATHS.AUTH.API_BASE}/*`,
   async (c: Context) => {
     try {
+      // Verify the client permission
+      if (!verifyClientPermission(c)) {
+        // If this is a POST request, try to redirect to home with error
+        if (c.req.method === 'POST') {
+          return redirectWithError(c, PATHS.HOME, 'Authentication failed')
+        }
+
+        // Otherwise return JSON error (fallback for API calls)
+        return c.json({ error: 'Authentication failed' }, 500)
+      }
+
       // Call the auth handler with the raw request
       return auth.handler(c.req.raw)
     } catch (error) {
@@ -137,6 +164,7 @@ authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
       headers: {
         ...Object.fromEntries(headerEntries),
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${c.env.CLIENT_PERMISSION}`,
       },
       body: JSON.stringify({
         email,
@@ -236,6 +264,7 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
       headers: {
         ...Object.fromEntries(headerEntries),
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${c.env.CLIENT_PERMISSION}`,
       },
       body: JSON.stringify({
         email,
@@ -325,7 +354,10 @@ authRoutes.post(PATHS.AUTH.SERVER.SIGN_OUT, async (c: Context) => {
 
     const req = new Request(url.toString(), {
       method: 'POST',
-      headers: Object.fromEntries(headerEntries),
+      headers: {
+        ...Object.fromEntries(headerEntries),
+        Authorization: `Bearer ${c.env.CLIENT_PERMISSION}`,
+      },
     })
 
     // Call the Better Auth handler directly

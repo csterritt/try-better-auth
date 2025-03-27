@@ -3,11 +3,13 @@ import { Fragment } from 'hono/jsx'
 import { getCookie, deleteCookie } from 'hono/cookie'
 import { showRoutes } from 'hono/dev'
 import { logger } from 'hono/logger'
+import dotenv from 'dotenv'
 
+import { Env } from './cf-env'
 import { renderer } from './renderer'
 import { authMiddleware } from './middleware'
 import { authRoutes } from './auth/auth-routes'
-import { PATHS, COOKIES, VALIDATION } from './constants'
+import { PATHS, COOKIES } from './constants'
 
 // Define a session type to match what Better Auth will provide
 interface User {
@@ -25,9 +27,13 @@ declare module 'hono' {
   }
 }
 
-// Define environment bindings for Cloudflare Workers
-interface Env {
-  DB: D1Database
+dotenv.config()
+if (
+  !process.env.CLIENT_PERMISSION ||
+  process.env.CLIENT_PERMISSION.trim() === ''
+) {
+  console.error('[CLIENT_PERMISSION] environmental variable not found')
+  process.exit(1)
 }
 
 const app = new Hono<{ Bindings: Env }>()
