@@ -100,16 +100,16 @@ authRoutes.on(
 authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
   try {
     const formData: FormDataType = await c.req.parseBody()
-    const email = formData.email ?? ''
+    const email = (formData.email as string | undefined) || ''
 
     // Store email in cookie for later use
-    setCookie(c, COOKIES.EMAIL_ENTERED, email.toString(), {
+    setCookie(c, COOKIES.EMAIL_ENTERED, email, {
       path: '/',
     })
 
     if (!email || typeof email !== 'string') {
       return redirectWithError(c, PATHS.HOME, 'Email is required', {
-        [COOKIES.EMAIL_ENTERED]: email.toString(),
+        [COOKIES.EMAIL_ENTERED]: email,
       })
     }
 
