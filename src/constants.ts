@@ -33,6 +33,9 @@ export const PATHS = {
       // Cancel OTP verification
       CANCEL_OTP: '/api/serv-auth/cancel-otp',
 
+      // Resend OTP code
+      RESEND_CODE: '/api/serv-auth/resend-code',
+
       // Sign out
       SIGN_OUT: '/api/serv-auth/sign-out',
     },
