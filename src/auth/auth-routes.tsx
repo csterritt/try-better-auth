@@ -45,13 +45,8 @@ authRoutes.on(
     try {
       // Verify the client permission
       if (!verifyClientPermission(c)) {
-        // If this is a POST request, try to redirect to home with error
-        if (c.req.method === 'POST') {
-          return redirectWithError(c, PATHS.HOME, 'Authentication failed')
-        }
-
         // Otherwise return JSON error (fallback for API calls)
-        return c.json({ error: 'Authentication failed' }, 500)
+        return c.json({ error: 'Path not found' }, 404)
       }
 
       // Call the auth handler with the raw request
