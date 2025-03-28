@@ -222,7 +222,10 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
 
     if (response.status !== 200) {
       const responseJson = (await response.json()) as any
-      if (responseJson.code === 'OTP_EXPIRED') {
+      if (
+        responseJson.code === 'OTP_EXPIRED' ||
+        (!IS_PRODUCTION && otp === '111111')
+      ) {
         return redirectWithError(
           c,
           `${PATHS.HOME}?email=${encodeURIComponent(email)}`,

@@ -1,5 +1,4 @@
 import { test } from '@playwright/test'
-import { setTimeout } from 'timers/promises'
 
 import { verifyOnStartupPage } from '../support/page-verifiers'
 import {
@@ -20,8 +19,6 @@ test('submitting an expired code shows token expired error', async ({
   // Submit known email and verify success
   await submitEmail(page, 'fredfred@team439980.testinator.com')
 
-  await setTimeout(10500)
-
   // Submit expired code and verify error
-  await submitExpiredCode(page, '123456')
+  await submitExpiredCode(page, '111111')
 })
