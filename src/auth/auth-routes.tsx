@@ -298,9 +298,54 @@ authRoutes.post(PATHS.AUTH.SERVER.RESEND_CODE, async (c: Context) => {
 
     console.log(`RESEND_CODE invoked for email: ${email}`)
 
-    // TODO: Implement actual resend logic here
-    // For now, just redirect back to await-code page
+    // Validate email format
+    if (!email || !VALIDATION.EMAIL_REGEX.test(email) || email.length > 254) {
+      return redirectWithError(
+        c,
+        PATHS.HOME,
+        'Please enter a valid email address',
+        { [COOKIES.EMAIL_ENTERED]: email || '' }
+      )
+    }
 
+    // Create a request to the Better Auth API with JSON body
+    const url = new URL(PATHS.AUTH.CLIENT.SEND_OTP, c.req.url)
+
+    // Convert headers to an object
+    const headerEntries: [string, string][] = []
+    c.req.raw.headers.forEach((value, key) => {
+      headerEntries.push([key, value])
+    })
+
+    const req = new Request(url.toString(), {
+      method: 'POST',
+      headers: {
+        ...Object.fromEntries(headerEntries),
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${c.env.CLIENT_PERMISSION}`,
+      },
+      body: JSON.stringify({
+        email,
+        type: 'sign-in',
+      }),
+    })
+
+    // Call the Better Auth handler
+    const response = await auth.handler(req)
+
+    // Check if the request was successful
+    if (response.status !== 200) {
+      const responseText = await response.text()
+      console.error('Error resending OTP:', responseText)
+      return redirectWithError(
+        c,
+        `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
+        'Failed to resend verification code',
+        { [COOKIES.EMAIL_ENTERED]: email }
+      )
+    }
+
+    // Redirect back to await-code page with success message
     return redirectWithMessage(
       c,
       `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
