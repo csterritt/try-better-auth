@@ -1,4 +1,5 @@
 import { test } from '@playwright/test'
+import { setTimeout } from 'timers/promises'
 
 import { verifyOnStartupPage } from '../support/page-verifiers'
 import {
@@ -8,7 +9,9 @@ import {
   cancelSignIn,
 } from '../support/auth-helpers'
 
-test('submitting an expired code shows token expired error', async ({ page }) => {
+test('submitting an expired code shows token expired error', async ({
+  page,
+}) => {
   // Navigate to startup page and verify
   await page.goto('http://localhost:3000/')
   await verifyOnStartupPage(page)
@@ -17,9 +20,8 @@ test('submitting an expired code shows token expired error', async ({ page }) =>
   // Submit known email and verify success
   await submitEmail(page, 'fredfred@team439980.testinator.com')
 
-  // Submit expired code and verify error
-  await submitExpiredCode(page, '111111')
+  await setTimeout(10500)
 
-  // Cancel to reset internal state
-  await cancelSignIn(page)
+  // Submit expired code and verify error
+  await submitExpiredCode(page, '123456')
 })

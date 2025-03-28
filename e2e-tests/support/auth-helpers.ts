@@ -99,9 +99,9 @@ export async function submitExpiredCode(page: Page, code: string) {
   await fillInput(page, 'code', code)
   await clickLink(page, 'submit')
 
-  // Verify we're back on sign-in page with error
-  await verifyOnSignInPage(page)
-  await verifyAlert(page, 'Token has expired or is invalid')
+  // Verify we're back on home page with error
+  await verifyOnStartupPage(page)
+  await verifyAlert(page, 'OTP has expired, please sign in again')
 }
 
 export async function resendCodeAndVerify(page: Page) {

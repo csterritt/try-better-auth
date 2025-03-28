@@ -221,14 +221,22 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
     const response = await auth.handler(req)
 
     if (response.status !== 200) {
-      const responseText = await response.text()
-      console.error('Error response:', responseText)
-      return redirectWithError(
-        c,
-        `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
-        'Invalid OTP or verification failed',
-        { [COOKIES.EMAIL_ENTERED]: email }
-      )
+      const responseJson = (await response.json()) as any
+      if (responseJson.code === 'OTP_EXPIRED') {
+        return redirectWithError(
+          c,
+          `${PATHS.HOME}?email=${encodeURIComponent(email)}`,
+          'OTP has expired, please sign in again',
+          { [COOKIES.EMAIL_ENTERED]: email }
+        )
+      } else {
+        return redirectWithError(
+          c,
+          `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
+          'Invalid OTP or verification failed',
+          { [COOKIES.EMAIL_ENTERED]: email }
+        )
+      }
     }
 
     // Copy all headers from the Better Auth response to our response

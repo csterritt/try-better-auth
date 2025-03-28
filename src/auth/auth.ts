@@ -12,6 +12,7 @@ export const auth = betterAuth({
   // Enable Email OTP authentication
   plugins: [
     emailOTP({
+      expiresIn: IS_PRODUCTION ? 900 : 10,
       async sendVerificationOTP({ email, otp, type }) {
         // For now, just log the values
         console.log(
