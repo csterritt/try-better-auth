@@ -70,13 +70,32 @@ const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
       <p>Welcome, {userEmail}!</p>
       <p>You are now signed in.</p>
       <p>
-        <a href={PATHS.PROTECTED}>Go to Protected Page</a>
+        <a href={PATHS.PROTECTED} data-testid="protected-link">Go to Protected Page</a>
       </p>
       <form action={PATHS.AUTH.SERVER.SIGN_OUT} method='post'>
         <button type='submit' data-testid='sign-out-link'>
           Sign Out
         </button>
       </form>
+    </div>
+  )
+}
+
+/**
+ * Renders the home page navigation for unauthenticated users
+ * @returns JSX element for the navigation links
+ */
+const HomeNavigation = () => {
+  return (
+    <div>
+      <p>Welcome to the Better Auth Example</p>
+      <p>
+        <a href={PATHS.AUTH.SERVER.SIGN_IN} data-testid="sign-in-link">Sign In</a>
+      </p>
+      <p>
+        <a href={PATHS.PROTECTED} data-testid="protected-link">Go to Protected Page</a>
+        <span> (requires authentication)</span>
+      </p>
     </div>
   )
 }
@@ -170,7 +189,7 @@ app.get(PATHS.HOME, (c: Context) => {
       {isLoggedIn ? (
         <AuthenticatedView session={session} />
       ) : (
-        <LoginForm c={c} />
+        <HomeNavigation />
       )}
     </div>
   )

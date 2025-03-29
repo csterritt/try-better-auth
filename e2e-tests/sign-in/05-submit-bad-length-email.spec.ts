@@ -1,6 +1,9 @@
 import { test } from '@playwright/test'
 
-import { verifyOnStartupPage } from '../support/page-verifiers'
+import {
+  verifyOnSignInPage,
+  verifyOnStartupPage,
+} from '../support/page-verifiers'
 import {
   cancelSignIn,
   startSignIn,
@@ -15,7 +18,7 @@ test('submitting a too-short email fails', async ({ page }) => {
 
   // Submit too short email and verify failure
   await submitInvalidEmail(page, 'a@b.c')
-  await verifyOnStartupPage(page)
+  await verifyOnSignInPage(page)
 })
 
 test('submitting a too-long email fails', async ({ page }) => {
@@ -27,5 +30,5 @@ test('submitting a too-long email fails', async ({ page }) => {
   // Submit too long email and verify failure
   const longEmail = 'a'.repeat(250) + '@example.com'
   await submitInvalidEmail(page, longEmail)
-  await verifyOnStartupPage(page)
+  await verifyOnSignInPage(page)
 })

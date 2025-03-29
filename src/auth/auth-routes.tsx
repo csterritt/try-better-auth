@@ -80,7 +80,7 @@ authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
     })
 
     if (!email || typeof email !== 'string') {
-      return redirectWithError(c, PATHS.HOME, 'Email is required', {
+      return redirectWithError(c, PATHS.AUTH.SERVER.SIGN_IN, 'Email is required', {
         [COOKIES.EMAIL_ENTERED]: email,
       })
     }
@@ -89,7 +89,7 @@ authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
     if (!VALIDATION.EMAIL_REGEX.test(email) || email.length > 254) {
       return redirectWithError(
         c,
-        PATHS.HOME,
+        PATHS.AUTH.SERVER.SIGN_IN,
         'Please enter a valid email address',
         { [COOKIES.EMAIL_ENTERED]: email }
       )
@@ -124,7 +124,7 @@ authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
     if (response.status !== 200) {
       const responseText = await response.text()
       console.error('Error response:', responseText)
-      return redirectWithError(c, PATHS.HOME, 'Failed to send OTP')
+      return redirectWithError(c, PATHS.AUTH.SERVER.SIGN_IN, 'Failed to send OTP')
     }
 
     // Redirect to the await-code page
@@ -134,7 +134,7 @@ authRoutes.post(PATHS.AUTH.SERVER.START_OTP, async (c: Context) => {
     )
   } catch (error) {
     console.error('Start OTP error:', error)
-    return redirectWithError(c, PATHS.HOME, 'Failed to start OTP process')
+    return redirectWithError(c, PATHS.AUTH.SERVER.SIGN_IN, 'Failed to start OTP process')
   }
 })
 
@@ -162,7 +162,7 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
     if (!VALIDATION.EMAIL_REGEX.test(email) || email.length > 254) {
       return redirectWithError(
         c,
-        PATHS.HOME,
+        PATHS.AUTH.SERVER.SIGN_IN,
         'Please enter a valid email address',
         { [COOKIES.EMAIL_ENTERED]: email }
       )
@@ -228,7 +228,7 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
       ) {
         return redirectWithError(
           c,
-          `${PATHS.HOME}?email=${encodeURIComponent(email)}`,
+          PATHS.AUTH.SERVER.SIGN_IN,
           'OTP has expired, please sign in again',
           { [COOKIES.EMAIL_ENTERED]: email }
         )
@@ -282,7 +282,7 @@ authRoutes.post(PATHS.AUTH.SERVER.FINISH_OTP, async (c: Context) => {
         { [COOKIES.EMAIL_ENTERED]: email }
       )
     } catch {
-      return redirectWithError(c, PATHS.HOME, 'Failed to verify OTP')
+      return redirectWithError(c, PATHS.AUTH.SERVER.SIGN_IN, 'Failed to verify OTP')
     }
   }
 })
@@ -302,7 +302,7 @@ authRoutes.post(PATHS.AUTH.SERVER.RESEND_CODE, async (c: Context) => {
     if (!email || !VALIDATION.EMAIL_REGEX.test(email) || email.length > 254) {
       return redirectWithError(
         c,
-        PATHS.HOME,
+        PATHS.AUTH.SERVER.SIGN_IN,
         'Please enter a valid email address',
         { [COOKIES.EMAIL_ENTERED]: email || '' }
       )
@@ -354,7 +354,7 @@ authRoutes.post(PATHS.AUTH.SERVER.RESEND_CODE, async (c: Context) => {
     )
   } catch (error) {
     console.error('Error resending OTP:', error)
-    return redirectWithError(c, PATHS.HOME, 'Failed to resend code')
+    return redirectWithError(c, PATHS.AUTH.SERVER.SIGN_IN, 'Failed to resend code')
   }
 })
 
@@ -403,35 +403,80 @@ authRoutes.post(PATHS.AUTH.SERVER.SIGN_OUT, async (c: Context) => {
       return redirectWithError(c, PATHS.HOME, 'Failed to sign out')
     }
 
-    // Copy all headers from the Better Auth response to our response, clearing cookies
-    const responseHeaderEntries: [string, string][] = []
-    response.headers.forEach((value, key) => {
-      responseHeaderEntries.push([key, value])
-    })
+    // Clear the email cookie
+    deleteCookie(c, COOKIES.EMAIL_ENTERED)
 
-    // Redirect to home page with the same headers
-    const resp = new Response(null, {
-      status: 302,
-      headers: {
-        ...Object.fromEntries(responseHeaderEntries),
-        Location: REDIRECTS.AFTER_SIGN_OUT,
-      },
-    })
-
-    resp.headers.append(
-      'Set-Cookie',
-      `better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
-    )
-    resp.headers.append(
-      'Set-Cookie',
-      `${COOKIES.EMAIL_ENTERED}=; Path=/; Max-Age=0`
-    )
-
-    return resp
+    // Redirect to home page with a message
+    return redirectWithMessage(c, PATHS.HOME, 'Sign out successful')
   } catch (error) {
     console.error('Sign out error:', error)
     return redirectWithError(c, PATHS.HOME, 'Failed to sign out')
   }
+})
+
+/**
+ * Sign-in page
+ * Renders a form for the user to enter their email to start OTP process
+ */
+authRoutes.get(PATHS.AUTH.SERVER.SIGN_IN, (c: Context) => {
+  // Get the email from cookie if it exists
+  const emailFromCookie = getCookie(c, COOKIES.EMAIL_ENTERED) || ''
+
+  // Check for message cookie
+  const message = getCookie(c, COOKIES.MESSAGE_FOUND)
+  if (message) {
+    deleteCookie(c, COOKIES.MESSAGE_FOUND, { path: '/' })
+  }
+
+  // Check for error cookie
+  const errorMessage = getCookie(c, COOKIES.ERROR_FOUND)
+  if (errorMessage) {
+    deleteCookie(c, COOKIES.ERROR_FOUND, { path: '/' })
+  }
+
+  return c.render(
+    <div data-testid='sign-in-page-banner'>
+      <h3>Sign in with OTP</h3>
+      
+      {message && (
+        <div style={{ color: 'green', marginBottom: '15px' }} role='alert'>
+          {message}
+        </div>
+      )}
+      
+      {errorMessage && (
+        <div style={{ color: 'red', marginBottom: '15px' }} role='alert'>
+          {errorMessage}
+        </div>
+      )}
+      
+      <form
+        action={PATHS.AUTH.SERVER.START_OTP}
+        method='post'
+        data-testid='sign-in-form'
+      >
+        <input
+          type='email'
+          id='email'
+          name='email'
+          placeholder='Email'
+          required
+          title='Please enter a valid email address'
+          value={emailFromCookie}
+          data-testid='email-input'
+        />
+        <button type='submit' data-testid='submit'>
+          Send OTP
+        </button>
+      </form>
+      
+      <p>
+        <a href={PATHS.HOME} data-testid='back-to-home-link'>
+          Back to Home
+        </a>
+      </p>
+    </div>
+  )
 })
 
 /**
@@ -460,7 +505,7 @@ authRoutes.get(PATHS.AUTH.SERVER.AWAIT_CODE, (c: Context) => {
 
   // If no email is provided, redirect to home with error
   if (!email) {
-    return redirectWithError(c, PATHS.HOME, 'Email is required')
+    return redirectWithError(c, PATHS.AUTH.SERVER.SIGN_IN, 'Email is required')
   }
 
   return c.render(

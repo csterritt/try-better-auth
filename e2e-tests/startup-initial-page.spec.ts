@@ -9,8 +9,8 @@ test('initial startup page has proper banners', async ({ page }) => {
   await verifyOnStartupPage(page)
 })
 
-test('initial startup page has a sign in form', async ({ page }) => {
+test('initial startup page has a sign in link', async ({ page }) => {
   // Navigate to startup page
   await page.goto('http://localhost:3000/')
-  expect(await elementExists(page, 'sign-in-form')).toBe(true)
+  expect(await elementExists(page, 'sign-in-link')).toBe(true)
 })

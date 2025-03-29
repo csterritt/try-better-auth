@@ -1,5 +1,6 @@
 import { Context, Next } from 'hono'
 import { auth } from './auth/auth'
+import { PATHS } from './constants'
 
 // Define interface for session data
 interface User {
@@ -31,7 +32,7 @@ export const authMiddleware = async (
     // Check if accessing a protected route without authentication
     const url = new URL(c.req.url)
     if (url.pathname === '/protected' && !session) {
-      return c.redirect('/')
+      return c.redirect(PATHS.AUTH.SERVER.SIGN_IN)
     }
   } catch (error) {
     // Log errors but continue - this prevents auth issues from breaking the app

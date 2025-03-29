@@ -6,7 +6,7 @@ export async function verifyOnStartupPage(page: Page) {
 }
 
 export async function verifyOnSignInPage(page: Page) {
-  expect(await elementExists(page, 'sign-in-form')).toBe(true)
+  expect(await elementExists(page, 'sign-in-page-banner')).toBe(true)
 }
 
 export async function verifyOnAwaitCodePage(page: Page) {

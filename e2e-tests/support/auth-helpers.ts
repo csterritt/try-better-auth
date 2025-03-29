@@ -13,6 +13,9 @@ export async function signOutAndVerify(page: Page) {
 }
 
 export async function startSignIn(page: Page) {
+  // Click the Sign In link on the home page
+  await clickLink(page, 'sign-in-link')
+  // Verify we're on the sign-in page
   await verifyOnSignInPage(page)
 }
 
@@ -100,7 +103,7 @@ export async function submitExpiredCode(page: Page, code: string) {
   await clickLink(page, 'submit')
 
   // Verify we're back on home page with error
-  await verifyOnStartupPage(page)
+  await verifyOnSignInPage(page)
   await verifyAlert(page, 'OTP has expired, please sign in again')
 }
 

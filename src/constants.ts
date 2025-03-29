@@ -21,6 +21,9 @@ export const PATHS = {
 
     // Server-side auth paths
     SERVER: {
+      // Sign in page
+      SIGN_IN: '/api/serv-auth/sign-in',
+
       // Start OTP verification process
       START_OTP: '/api/serv-auth/start-otp',
 
