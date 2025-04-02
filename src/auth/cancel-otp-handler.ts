@@ -15,6 +15,9 @@ export const setupCancelOtpHandler = (
   authRoutes.get(PATHS.AUTH.SERVER.CANCEL_OTP, (c: Context) => {
     // Clear the email cookie
     deleteCookie(c, COOKIES.EMAIL_ENTERED)
+    
+    // Clear the OTP setup cookie
+    deleteCookie(c, COOKIES.OTP_SETUP)
 
     // Redirect to home
     return c.redirect(PATHS.HOME, 302)

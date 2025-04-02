@@ -5,6 +5,7 @@ import { Env } from '../cf-env'
 import { auth } from './auth'
 import { COOKIES, PATHS, VALIDATION } from '../constants'
 import { redirectWithError } from '../support/redirects'
+import { encrypt } from './crypto-utils'
 
 // Define a type for form data from parseBody
 type FormDataType = {
@@ -84,6 +85,27 @@ export const setupStartOtpHandler = (
           PATHS.AUTH.SERVER.SIGN_IN,
           'Failed to send OTP'
         )
+      }
+
+      try {
+        // Set encrypted cookie with current timestamp
+        const currentTime = Date.now().toString()
+
+        // Check if encryption key is available
+        if (!process.env.ENCRYPT_KEY) {
+          console.error('ENCRYPT_KEY is not defined in environment variables')
+          // Continue without setting the encrypted cookie
+        } else {
+          const encryptedTime = encrypt(currentTime, process.env.ENCRYPT_KEY)
+          setCookie(c, COOKIES.OTP_SETUP, encryptedTime, {
+            path: '/',
+            httpOnly: true,
+            secure: process.env.PRODUCTION === 'true',
+          })
+        }
+      } catch (error) {
+        console.error('Error setting encrypted cookie:', error)
+        // Continue without setting the encrypted cookie
       }
 
       // Redirect to the await-code page

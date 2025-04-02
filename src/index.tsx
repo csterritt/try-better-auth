@@ -70,7 +70,9 @@ const AuthenticatedView = ({ session }: AuthenticatedViewProps) => {
       <p>Welcome, {userEmail}!</p>
       <p>You are now signed in.</p>
       <p>
-        <a href={PATHS.PROTECTED} data-testid="protected-link">Go to Protected Page</a>
+        <a href={PATHS.PROTECTED} data-testid='protected-link'>
+          Go to Protected Page
+        </a>
       </p>
       <form action={PATHS.AUTH.SERVER.SIGN_OUT} method='post'>
         <button type='submit' data-testid='sign-out-link'>
@@ -90,10 +92,14 @@ const HomeNavigation = () => {
     <div>
       <p>Welcome to the Better Auth Example</p>
       <p>
-        <a href={PATHS.AUTH.SERVER.SIGN_IN} data-testid="sign-in-link">Sign In</a>
+        <a href={PATHS.AUTH.SERVER.SIGN_IN} data-testid='sign-in-link'>
+          Sign In
+        </a>
       </p>
       <p>
-        <a href={PATHS.PROTECTED} data-testid="protected-link">Go to Protected Page</a>
+        <a href={PATHS.PROTECTED} data-testid='protected-link'>
+          Go to Protected Page
+        </a>
         <span> (requires authentication)</span>
       </p>
     </div>

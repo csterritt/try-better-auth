@@ -65,6 +65,8 @@ export const COOKIES = {
   ERROR_FOUND: 'ERROR_FOUND',
   // Email entered cookie
   EMAIL_ENTERED: 'EMAIL_ENTERED',
+  // OTP setup timestamp cookie (encrypted)
+  OTP_SETUP: 'OTP_SETUP',
 }
 
 // Validation patterns
@@ -83,6 +85,12 @@ export const REDIRECTS = {
 
   // After error
   AFTER_ERROR: PATHS.HOME,
+}
+
+// Time constants (in seconds)
+export const TIME_LIMITS = {
+  // Minimum time between OTP requests
+  MIN_TIME_BETWEEN_REQUESTS: process.env.PRODUCTION === 'true' ? 60 : 5,
 }
 
 // Check if we're in production (for cookie security)

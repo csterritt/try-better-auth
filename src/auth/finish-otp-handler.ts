@@ -146,6 +146,12 @@ export const setupFinishOtpHandler = (
         `${COOKIES.EMAIL_ENTERED}=; Path=/; Max-Age=0`
       )
 
+      // Clear the OTP setup cookie
+      resp.headers.append(
+        'Set-Cookie',
+        `${COOKIES.OTP_SETUP}=; Path=/; Max-Age=0`
+      )
+
       // Set the message cookie
       resp.headers.append(
         'Set-Cookie',
