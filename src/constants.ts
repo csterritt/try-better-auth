@@ -90,7 +90,7 @@ export const REDIRECTS = {
 // Time constants (in seconds)
 export const TIME_LIMITS = {
   // Minimum time between OTP requests
-  MIN_TIME_BETWEEN_REQUESTS: process.env.PRODUCTION === 'true' ? 60 : 5,
+  MIN_TIME_BETWEEN_REQUESTS: process.env.PRODUCTION === 'true' ? 60 : 2,
 }
 
 // Check if we're in production (for cookie security)
