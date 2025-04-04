@@ -3,7 +3,7 @@ import { setCookie } from 'hono/cookie'
 
 import { Env } from '../cf-env'
 import { auth } from './auth'
-import { COOKIES, PATHS, VALIDATION } from '../constants'
+import { COOKIES, IS_PRODUCTION, PATHS, VALIDATION } from '../constants'
 import { redirectWithError } from '../support/redirects'
 import { encrypt } from './crypto-utils'
 
@@ -100,7 +100,7 @@ export const setupStartOtpHandler = (
           setCookie(c, COOKIES.OTP_SETUP, encryptedTime, {
             path: '/',
             httpOnly: true,
-            secure: process.env.PRODUCTION === 'true',
+            secure: IS_PRODUCTION,
           })
         }
       } catch (error) {

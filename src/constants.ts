@@ -87,12 +87,12 @@ export const REDIRECTS = {
   AFTER_ERROR: PATHS.HOME,
 }
 
-// Time constants (in seconds)
-export const TIME_LIMITS = {
-  // Minimum time between OTP requests
-  MIN_TIME_BETWEEN_REQUESTS: process.env.PRODUCTION === 'true' ? 60 : 2,
-}
-
 // Check if we're in production (for cookie security)
 // Using process.env.NODE_ENV as a more standard approach
 export const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+
+// Time constants (in seconds)
+export const TIME_LIMITS = {
+  // Minimum time between OTP requests
+  MIN_TIME_BETWEEN_REQUESTS: IS_PRODUCTION ? 60 : 2,
+}
