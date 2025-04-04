@@ -30,7 +30,7 @@ test('clicking resend code button with proper wait allows user to resend code', 
   console.log('First code:', firstCode)
 
   // Wait for two seconds to get past OTP wait time
-  await setTimeout(2000)
+  await setTimeout(2100)
 
   // Click resend button and verify notification
   await resendCodeAndVerify(page)
@@ -72,12 +72,12 @@ test('clicking resend code button immediately shows wait time error', async ({
   // Verify error message about waiting
   const alertElement = page.getByRole('alert')
   await expect(alertElement).toBeVisible()
-  
+
   // Get the alert text and verify it contains the wait message
   const alertText = await alertElement.textContent()
   expect(alertText).toContain('Please wait another')
   expect(alertText).toContain('seconds before asking for another code')
-  
+
   // Verify the alert contains a number (the remaining seconds)
   const secondsMatch = alertText?.match(/another (\d+) seconds/)
   expect(secondsMatch).not.toBeNull()
@@ -143,12 +143,12 @@ test('resending code twice with wait in between, then immediately trying a third
   // Verify error message about waiting
   const alertElement = page.getByRole('alert')
   await expect(alertElement).toBeVisible()
-  
+
   // Get the alert text and verify it contains the wait message
   const alertText = await alertElement.textContent()
   expect(alertText).toContain('Please wait another')
   expect(alertText).toContain('seconds before asking for another code')
-  
+
   // Verify the alert contains a number (the remaining seconds)
   const secondsMatch = alertText?.match(/another (\d+) seconds/)
   expect(secondsMatch).not.toBeNull()

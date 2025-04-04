@@ -1,5 +1,15 @@
 import { Context } from 'hono'
-import { COOKIES } from '../constants'
+import { COOKIES, IS_PRODUCTION } from '../constants'
+
+/**
+ * Creates a cookie string with appropriate security settings
+ * @param name - Cookie name
+ * @param value - Cookie value
+ * @returns Formatted cookie string
+ */
+const createCookieString = (name: string, value: string): string => {
+  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict${IS_PRODUCTION ? '; Secure' : ''}`
+}
 
 /**
  * Helper function to redirect with a message cookie
@@ -31,13 +41,13 @@ export function redirectWithMessage(
 
   // Add the error cookie
   allCookies.push(
-    `${COOKIES.MESSAGE_FOUND}=${encodeURIComponent(message)}; Path=/; HttpOnly; SameSite=Strict`
+    createCookieString(COOKIES.MESSAGE_FOUND, message)
   )
 
   // Add any additional cookies
   Object.entries(additionalCookies).forEach(([name, value]) => {
     allCookies.push(
-      `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict`
+      createCookieString(name, value)
     )
   })
 
@@ -82,13 +92,13 @@ export function redirectWithError(
 
   // Add the error cookie
   allCookies.push(
-    `${COOKIES.ERROR_FOUND}=${encodeURIComponent(errorMessage)}; Path=/; HttpOnly; SameSite=Strict`
+    createCookieString(COOKIES.ERROR_FOUND, errorMessage)
   )
 
   // Add any additional cookies
   Object.entries(additionalCookies).forEach(([name, value]) => {
     allCookies.push(
-      `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict`
+      createCookieString(name, value)
     )
   })
 
