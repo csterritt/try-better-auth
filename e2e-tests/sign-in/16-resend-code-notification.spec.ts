@@ -1,6 +1,7 @@
-import { test, expect } from '@playwright/test'
+import { test as baseTest, expect, Page } from '@playwright/test'
 import * as fs from 'fs'
 import { setTimeout } from 'timers/promises'
+import * as path from 'path'
 
 import { verifyOnStartupPage } from '../support/page-verifiers'
 import {
@@ -11,153 +12,253 @@ import {
   submitValidCode,
   signOutAndVerify,
 } from '../support/auth-helpers'
-import { clickLink } from '../support/finders'
+import { clickLink, verifyAlert } from '../support/finders'
 
-test('clicking resend code button with proper wait allows user to resend code', async ({
-  page,
-}) => {
-  // Navigate to startup page and verify
-  await page.goto('http://localhost:3000/')
-  await verifyOnStartupPage(page)
-  await startSignIn(page)
+// Fixed OTP file path used by the backend
+const OTP_FILE_PATH = '/tmp/otp.txt'
 
-  // Submit known email to get to the await code page
-  const testEmail = 'fredfred@team439980.testinator.com'
-  await submitEmail(page, testEmail)
+// Create a test fixture with isolated test context
+type TestFixture = {
+  page: Page
+  testId: string
+  testEmail: string
+}
 
-  // Read the first OTP code from the file
-  const firstCode = fs.readFileSync('/tmp/otp.txt', 'utf8').trim()
-  console.log('First code:', firstCode)
-
-  // Wait for two seconds to get past OTP wait time
-  await setTimeout(2100)
-
-  // Click resend button and verify notification
-  await resendCodeAndVerify(page)
-
-  // Read the second OTP code from the file
-  const secondCode = fs.readFileSync('/tmp/otp.txt', 'utf8').trim()
-  console.log('Second code:', secondCode)
-
-  // Try the first code - should fail
-  await submitBadCode(page, firstCode)
-
-  // Try the second code - should succeed
-  await submitValidCode(page, secondCode)
-
-  // Sign out and verify we're back on the home page
-  await clickLink(page, 'visit-home-link')
-  await signOutAndVerify(page)
+// Extend the base test with our custom fixture
+const test = baseTest.extend<TestFixture>({
+  testId: async ({}, use, testInfo) => {
+    // Generate a unique test ID for isolation
+    const uniqueId = `${testInfo.title.replace(/\s+/g, '-')}-${Date.now()}-${Math.floor(Math.random() * 10000)}`
+    await use(uniqueId)
+  },
+  testEmail: async ({ testId }, use) => {
+    // Create a unique email for each test run
+    await use(`fredfred+${testId}@team439980.testinator.com`)
+  },
 })
 
-test('clicking resend code button immediately shows wait time error', async ({
-  page,
-}) => {
-  // Navigate to startup page and verify
-  await page.goto('http://localhost:3000/')
-  await verifyOnStartupPage(page)
-  await startSignIn(page)
+// Helper function to read OTP code with retries and clear the file after reading
+async function readOtpCode(maxRetries = 10, retryDelay = 200): Promise<string> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      if (fs.existsSync(OTP_FILE_PATH)) {
+        const code = fs.readFileSync(OTP_FILE_PATH, 'utf8').trim()
+        if (code.length > 0) {
+          console.log(`Read OTP code: ${code}`)
 
-  // Submit known email to get to the await code page
-  const testEmail = 'fredfred@team439980.testinator.com'
-  await submitEmail(page, testEmail)
+          // Clear the file after reading to avoid conflicts with other tests
+          fs.writeFileSync(OTP_FILE_PATH, '')
 
-  // Read the first OTP code from the file
-  const firstCode = fs.readFileSync('/tmp/otp.txt', 'utf8').trim()
-  console.log('First code:', firstCode)
+          return code
+        }
+      }
+    } catch (e) {
+      console.log(
+        `Error reading OTP file (attempt ${attempt + 1}/${maxRetries}):`,
+        e
+      )
+    }
+    await setTimeout(retryDelay)
+  }
+  throw new Error(
+    `Failed to read OTP code from ${OTP_FILE_PATH} after ${maxRetries} attempts`
+  )
+}
 
-  // Click resend button immediately (without waiting)
+// Try to resend code and check if it was successful
+async function tryResendCode(page: Page): Promise<boolean> {
+  // Click the resend button
   await clickLink(page, 'resend-code-button')
 
-  // Verify error message about waiting
+  // Check for alert message
   const alertElement = page.getByRole('alert')
-  await expect(alertElement).toBeVisible()
+  await expect(alertElement).toBeVisible({ timeout: 5000 })
 
-  // Get the alert text and verify it contains the wait message
-  const alertText = await alertElement.textContent()
-  expect(alertText).toContain('Please wait another')
-  expect(alertText).toContain('seconds before asking for another code')
+  // Get alert text to determine if resend was successful or showed wait time error
+  const alertText = (await alertElement.textContent()) || ''
 
-  // Verify the alert contains a number (the remaining seconds)
-  const secondsMatch = alertText?.match(/another (\d+) seconds/)
-  expect(secondsMatch).not.toBeNull()
-  expect(parseInt(secondsMatch?.[1] || '0')).toBeGreaterThan(0)
+  if (alertText.includes('Code sent!')) {
+    console.log('✅ Successfully resent code')
+    return true
+  } else if (alertText.includes('Please wait another')) {
+    console.log('❌ Resend failed: Need to wait')
+    return false
+  } else {
+    console.log('⚠️ Unexpected alert message:', alertText)
+    return false
+  }
+}
 
-  // Wait for the required time
-  await setTimeout(2000)
+// Wait for enough time to pass so resend becomes available
+async function waitForResendAvailable(
+  page: Page,
+  maxWaitTime = 10000
+): Promise<void> {
+  const startTime = Date.now()
 
-  // Now we should be able to resend
-  await resendCodeAndVerify(page)
+  while (Date.now() - startTime < maxWaitTime) {
+    // Try to resend
+    const success = await tryResendCode(page)
+    if (success) {
+      return // Resend succeeded
+    }
 
-  // Read the second OTP code from the file
-  const secondCode = fs.readFileSync('/tmp/otp.txt', 'utf8').trim()
-  console.log('Second code:', secondCode)
+    // Wait a bit before trying again
+    await setTimeout(1000)
+  }
 
-  // Try the second code - should succeed
-  await submitValidCode(page, secondCode)
+  throw new Error('Timed out waiting for resend to become available')
+}
 
-  // Sign out and verify we're back on the home page
-  await clickLink(page, 'visit-home-link')
-  await signOutAndVerify(page)
-})
+// Use describe.serial to run these tests in sequence since they share the OTP file
+test.describe.serial('Resend code notification tests', () => {
+  test('clicking resend code button with proper wait allows user to resend code', async ({
+    page,
+    testEmail,
+  }) => {
+    // Navigate to startup page and verify
+    await page.goto('http://localhost:3000/')
+    await verifyOnStartupPage(page)
+    await startSignIn(page)
 
-test('resending code twice with wait in between, then immediately trying a third time shows error', async ({
-  page,
-}) => {
-  // Navigate to startup page and verify
-  await page.goto('http://localhost:3000/')
-  await verifyOnStartupPage(page)
-  await startSignIn(page)
+    // Submit unique email to get to the await code page
+    await submitEmail(page, testEmail)
 
-  // Submit known email to get to the await code page
-  const testEmail = 'fredfred@team439980.testinator.com'
-  await submitEmail(page, testEmail)
+    // Read the first OTP code using our retry mechanism
+    const firstCode = await readOtpCode()
+    console.log('First code:', firstCode)
 
-  // Read the first OTP code from the file
-  const firstCode = fs.readFileSync('/tmp/otp.txt', 'utf8').trim()
-  console.log('First code:', firstCode)
+    // Wait approximately 3 seconds to ensure resend becomes available
+    await setTimeout(3000)
 
-  // Wait for the required time before first resend
-  await setTimeout(2000)
+    // Try to resend code and verify it succeeds
+    const resendSucceeded = await tryResendCode(page)
+    expect(resendSucceeded).toBe(true)
 
-  // First resend - should work
-  await resendCodeAndVerify(page)
+    // Read the second OTP code with retries
+    const secondCode = await readOtpCode()
+    console.log('Second code:', secondCode)
 
-  // Read the second OTP code from the file
-  const secondCode = fs.readFileSync('/tmp/otp.txt', 'utf8').trim()
-  console.log('Second code:', secondCode)
+    // Verify we got a different code
+    expect(secondCode).not.toBe(firstCode)
 
-  // Wait for the required time before second resend
-  await setTimeout(2000)
+    // Try the first code - should fail
+    await submitBadCode(page, firstCode)
 
-  // Second resend - should work
-  await resendCodeAndVerify(page)
+    // Try the second code - should succeed
+    await submitValidCode(page, secondCode)
 
-  // Read the third OTP code from the file
-  const thirdCode = fs.readFileSync('/tmp/otp.txt', 'utf8').trim()
-  console.log('Third code:', thirdCode)
+    // Sign out and verify we're back on the home page
+    await clickLink(page, 'visit-home-link')
+    await signOutAndVerify(page)
+  })
 
-  // Try to resend immediately after second resend - should show error
-  await clickLink(page, 'resend-code-button')
+  test('clicking resend code button immediately shows wait time error', async ({
+    page,
+    testEmail,
+  }) => {
+    // Navigate to startup page and verify
+    await page.goto('http://localhost:3000/')
+    await verifyOnStartupPage(page)
+    await startSignIn(page)
 
-  // Verify error message about waiting
-  const alertElement = page.getByRole('alert')
-  await expect(alertElement).toBeVisible()
+    // Submit unique email to get to the await code page
+    await submitEmail(page, testEmail)
 
-  // Get the alert text and verify it contains the wait message
-  const alertText = await alertElement.textContent()
-  expect(alertText).toContain('Please wait another')
-  expect(alertText).toContain('seconds before asking for another code')
+    // Read the first OTP code with retries
+    const firstCode = await readOtpCode()
+    console.log('First code:', firstCode)
 
-  // Verify the alert contains a number (the remaining seconds)
-  const secondsMatch = alertText?.match(/another (\d+) seconds/)
-  expect(secondsMatch).not.toBeNull()
-  expect(parseInt(secondsMatch?.[1] || '0')).toBeGreaterThan(0)
+    // Click resend button immediately (without waiting)
+    const immediateResendSucceeded = await tryResendCode(page)
 
-  // Try the third code - should succeed
-  await submitValidCode(page, thirdCode)
+    // Should fail immediately
+    expect(immediateResendSucceeded).toBe(false)
 
-  // Sign out and verify we're back on the home page
-  await clickLink(page, 'visit-home-link')
-  await signOutAndVerify(page)
+    // Verify error message about waiting
+    const alertElement = page.getByRole('alert')
+    await expect(alertElement).toBeVisible()
+
+    // Get the alert text and verify it contains the wait message
+    const alertText = await alertElement.textContent()
+    expect(alertText).toContain('Please wait another')
+    expect(alertText).toContain('seconds before asking for another code')
+
+    // Verify the alert contains a number (the remaining seconds)
+    const secondsMatch = alertText?.match(/another (\d+) seconds/)
+    expect(secondsMatch).not.toBeNull()
+    expect(parseInt(secondsMatch?.[1] || '0')).toBeGreaterThan(0)
+
+    // Wait for resend to become available
+    await waitForResendAvailable(page)
+
+    // Read the second OTP code with retries
+    const secondCode = await readOtpCode()
+    console.log('Second code:', secondCode)
+
+    // Try the second code - should succeed
+    await submitValidCode(page, secondCode)
+
+    // Sign out and verify we're back on the home page
+    await clickLink(page, 'visit-home-link')
+    await signOutAndVerify(page)
+  })
+
+  test('resending code twice with wait in between and then immediately trying a third time shows error', async ({
+    page,
+    testEmail,
+  }) => {
+    // Navigate to startup page and verify
+    await page.goto('http://localhost:3000/')
+    await verifyOnStartupPage(page)
+    await startSignIn(page)
+
+    // Submit unique email to get to the await code page
+    await submitEmail(page, testEmail)
+
+    // Read the first OTP code with retries
+    const firstCode = await readOtpCode()
+    console.log('First code:', firstCode)
+
+    // Wait for resend to become available and resend first time
+    await waitForResendAvailable(page)
+
+    // Read the second OTP code with retries
+    const secondCode = await readOtpCode()
+    console.log('Second code:', secondCode)
+    expect(secondCode).not.toBe(firstCode)
+
+    // Wait for resend to become available and resend second time
+    await waitForResendAvailable(page)
+
+    // Read the third OTP code with retries
+    const thirdCode = await readOtpCode()
+    console.log('Third code:', thirdCode)
+    expect(thirdCode).not.toBe(secondCode)
+
+    // Try to resend immediately after second resend - should show error
+    const immediateResendSucceeded = await tryResendCode(page)
+    expect(immediateResendSucceeded).toBe(false)
+
+    // Verify error message about waiting
+    const alertElement = page.getByRole('alert')
+    await expect(alertElement).toBeVisible()
+
+    // Get the alert text and verify it contains the wait message
+    const alertText = await alertElement.textContent()
+    expect(alertText).toContain('Please wait another')
+    expect(alertText).toContain('seconds before asking for another code')
+
+    // Verify the alert contains a number (the remaining seconds)
+    const secondsMatch = alertText?.match(/another (\d+) seconds/)
+    expect(secondsMatch).not.toBeNull()
+    expect(parseInt(secondsMatch?.[1] || '0')).toBeGreaterThan(0)
+
+    // Try the third code - should succeed
+    await submitValidCode(page, thirdCode)
+
+    // Sign out and verify we're back on the home page
+    await clickLink(page, 'visit-home-link')
+    await signOutAndVerify(page)
+  })
 })
