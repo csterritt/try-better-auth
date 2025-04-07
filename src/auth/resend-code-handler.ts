@@ -6,11 +6,7 @@ import { auth } from './auth'
 import { COOKIES, PATHS, VALIDATION, TIME_LIMITS } from '../constants'
 import { redirectWithError, redirectWithMessage } from '../support/redirects'
 import { decrypt, encrypt } from './crypto-utils'
-
-// Define a type for form data from parseBody
-type FormDataType = {
-  [key: string]: string | undefined | File
-}
+import { OtpSetupData, FormDataType } from './auth-types'
 
 /**
  * Resend OTP code
@@ -60,11 +56,11 @@ export const setupResendCodeHandler = (
 
       // Decrypt the cookie value
       try {
-        const decryptedTimestamp = decrypt(
+        const decryptedData = decrypt(
           otpSetupCookie,
           process.env.ENCRYPT_KEY
         )
-        if (!decryptedTimestamp) {
+        if (!decryptedData) {
           console.error('Failed to decrypt OTP_SETUP cookie')
           return redirectWithError(
             c,
@@ -73,8 +69,9 @@ export const setupResendCodeHandler = (
           )
         }
 
-        // Parse the timestamp and check if enough time has passed
-        const setupTime = parseInt(decryptedTimestamp, 10)
+        // Parse the OTP setup data
+        const otpSetupData = JSON.parse(decryptedData) as OtpSetupData
+        const setupTime = otpSetupData.time
         const currentTime = Date.now()
         const elapsedSeconds = Math.floor((currentTime - setupTime) / 1000)
 
@@ -139,9 +136,13 @@ export const setupResendCodeHandler = (
         [COOKIES.EMAIL_ENTERED]: email,
       }
       try {
-        const currentTime = Date.now().toString()
+        // Create OTP setup data object with current time and reset code attempts
+        const otpSetupData: OtpSetupData = {
+          time: Date.now(),
+          codeAttempts: 0
+        }
         extraCookies[COOKIES.OTP_SETUP] = encrypt(
-          currentTime,
+          JSON.stringify(otpSetupData),
           process.env.ENCRYPT_KEY
         )
       } catch (error) {

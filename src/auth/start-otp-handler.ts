@@ -6,11 +6,7 @@ import { auth } from './auth'
 import { COOKIES, IS_PRODUCTION, PATHS, VALIDATION } from '../constants'
 import { redirectWithError } from '../support/redirects'
 import { encrypt } from './crypto-utils'
-
-// Define a type for form data from parseBody
-type FormDataType = {
-  [key: string]: string | undefined | File
-}
+import { OtpSetupData, FormDataType } from './auth-types'
 
 /**
  * Start OTP verification process
@@ -88,16 +84,19 @@ export const setupStartOtpHandler = (
       }
 
       try {
-        // Set encrypted cookie with current timestamp
-        const currentTime = Date.now().toString()
+        // Create OTP setup data object with current time and 0 code attempts
+        const otpSetupData: OtpSetupData = {
+          time: Date.now(),
+          codeAttempts: 0
+        }
 
         // Check if encryption key is available
         if (!process.env.ENCRYPT_KEY) {
           console.error('ENCRYPT_KEY is not defined in environment variables')
           // Continue without setting the encrypted cookie
         } else {
-          const encryptedTime = encrypt(currentTime, process.env.ENCRYPT_KEY)
-          setCookie(c, COOKIES.OTP_SETUP, encryptedTime, {
+          const encryptedData = encrypt(JSON.stringify(otpSetupData), process.env.ENCRYPT_KEY)
+          setCookie(c, COOKIES.OTP_SETUP, encryptedData, {
             path: '/',
             httpOnly: true,
             secure: IS_PRODUCTION,

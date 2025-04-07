@@ -1,5 +1,6 @@
 import { Context, Hono } from 'hono'
 import fs from 'fs'
+import { getCookie } from 'hono/cookie'
 
 import { Env } from '../cf-env'
 import { auth } from './auth'
@@ -9,13 +10,11 @@ import {
   PATHS,
   REDIRECTS,
   VALIDATION,
+  TIME_LIMITS,
 } from '../constants'
 import { redirectWithError } from '../support/redirects'
-
-// Define a type for form data from parseBody
-type FormDataType = {
-  [key: string]: string | undefined | File
-}
+import { decrypt, encrypt } from './crypto-utils'
+import { OtpSetupData, FormDataType } from './auth-types'
 
 /**
  * Finish OTP verification process
@@ -58,6 +57,25 @@ export const setupFinishOtpHandler = (
           "You must supply the code sent to your email address. Check your spam filter, and after a few minutes, if it hasn't arrived, click the 'Resend' button below to try again.",
           { [COOKIES.EMAIL_ENTERED]: email }
         )
+      }
+
+      // Check and update code attempts
+      let otpSetupData: OtpSetupData = { time: Date.now(), codeAttempts: 0 }
+      const otpSetupCookie = getCookie(c, COOKIES.OTP_SETUP)
+
+      if (otpSetupCookie && process.env.ENCRYPT_KEY) {
+        try {
+          const decryptedData = decrypt(otpSetupCookie, process.env.ENCRYPT_KEY)
+          if (decryptedData) {
+            otpSetupData = JSON.parse(decryptedData) as OtpSetupData
+
+            // Increment code attempts
+            otpSetupData.codeAttempts += 1
+          }
+        } catch (error) {
+          console.error('Error processing OTP_SETUP cookie:', error)
+          // Continue with default values if parsing fails
+        }
       }
 
       // In development mode, read OTP from file
@@ -105,6 +123,21 @@ export const setupFinishOtpHandler = (
 
       if (response.status !== 200) {
         const responseJson = (await response.json()) as any
+
+        // Update the OTP setup cookie with the incremented attempt count
+        let extraCookies = { [COOKIES.EMAIL_ENTERED]: email }
+
+        if (process.env.ENCRYPT_KEY) {
+          try {
+            extraCookies[COOKIES.OTP_SETUP] = encrypt(
+              JSON.stringify(otpSetupData),
+              process.env.ENCRYPT_KEY
+            )
+          } catch (error) {
+            console.error('Error updating OTP_SETUP cookie:', error)
+          }
+        }
+
         if (
           responseJson.code === 'OTP_EXPIRED' ||
           (!IS_PRODUCTION && otp === '111111')
@@ -116,11 +149,21 @@ export const setupFinishOtpHandler = (
             { [COOKIES.EMAIL_ENTERED]: email }
           )
         } else {
+          // Check if max attempts reached
+          if (otpSetupData.codeAttempts >= TIME_LIMITS.MAX_CODE_ATTEMPTS) {
+            return redirectWithError(
+              c,
+              PATHS.AUTH.SERVER.SIGN_IN,
+              'Too many failed attempts. Please sign in again.',
+              { [COOKIES.EMAIL_ENTERED]: email }
+            )
+          }
+
           return redirectWithError(
             c,
             `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
             'Invalid OTP or verification failed',
-            { [COOKIES.EMAIL_ENTERED]: email }
+            extraCookies
           )
         }
       }

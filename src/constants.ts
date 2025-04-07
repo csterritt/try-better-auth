@@ -95,4 +95,6 @@ export const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 export const TIME_LIMITS = {
   // Minimum time between OTP requests
   MIN_TIME_BETWEEN_REQUESTS: IS_PRODUCTION ? 60 : 2,
+  // Maximum number of code attempts before requiring a new sign-in
+  MAX_CODE_ATTEMPTS: 3,
 }
