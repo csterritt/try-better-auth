@@ -7,7 +7,10 @@ import dotenv from 'dotenv'
 
 import { Env } from './cf-env'
 import { renderer } from './renderer'
-import { authMiddleware } from './middleware'
+import {
+  provideSessionMiddleware,
+  protectedRouteMiddleware,
+} from './middleware'
 import { authRoutes } from './auth/auth-routes'
 import { PATHS, COOKIES } from './constants'
 
@@ -45,7 +48,7 @@ app.use('*', logger())
 app.use(renderer)
 
 // Apply the authentication middleware to all routes
-app.use('*', authMiddleware)
+app.use('*', provideSessionMiddleware)
 
 // Mount the auth routes
 app.route('', authRoutes)
@@ -202,7 +205,7 @@ app.get(PATHS.HOME, (c: Context) => {
 })
 
 // Protected route - only accessible to authenticated users
-app.get(PATHS.PROTECTED, (c: Context) => {
+app.get(PATHS.PROTECTED, protectedRouteMiddleware, (c: Context) => {
   // Check for message cookie using Hono's getCookie
   const message = getCookie(c, COOKIES.MESSAGE_FOUND)
 

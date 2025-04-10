@@ -17,7 +17,7 @@ interface Session {
 /**
  * Middleware to check authentication and add session data to the context
  */
-export const authMiddleware = async (
+export const provideSessionMiddleware = async (
   c: Context,
   next: Next
 ): Promise<Response | void> => {
@@ -30,21 +30,37 @@ export const authMiddleware = async (
     // Set the session in the context
     c.set('session', session || null)
 
-    // Check if accessing a protected route without authentication
-    const url = new URL(c.req.url)
-    if (url.pathname === '/protected' && !session) {
-      return redirectWithError(
-        c,
-        PATHS.AUTH.SERVER.SIGN_IN,
-        'You must be signed in to visit that page'
-      )
-    }
+    // Continue to the next middleware or route handler
+    return next()
   } catch (error) {
     // Log errors but continue - this prevents auth issues from breaking the app
     console.error('Auth middleware error:', error)
     c.set('session', null)
+
+    // Continue to the next middleware or route handler
+    return next()
+  }
+}
+
+/**
+ * Middleware to protect routes that require authentication
+ * Use this as the second argument to route handlers that need authentication
+ */
+export const protectedRouteMiddleware = async (
+  c: Context,
+  next: Next
+): Promise<Response | void> => {
+  const session = c.get('session')
+
+  // If user is not signed in, redirect to sign-in page with error message
+  if (!session?.user) {
+    return redirectWithError(
+      c,
+      PATHS.AUTH.SERVER.SIGN_IN,
+      'You must be signed in to visit that page'
+    )
   }
 
-  // Continue to the next middleware or route handler
+  // User is authenticated, proceed to the next middleware or route handler
   return next()
 }
