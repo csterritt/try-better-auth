@@ -45,9 +45,12 @@ export const setupSignOutHandler = (
 
       // Clear the email cookie
       deleteCookie(c, COOKIES.EMAIL_ENTERED)
-      
+
       // Clear the OTP setup cookie
       deleteCookie(c, COOKIES.OTP_SETUP)
+
+      // Clear the session cookie
+      deleteCookie(c, COOKIES.SESSION)
 
       // Redirect to home page with a message
       return redirectWithMessage(c, PATHS.HOME, 'Sign out successful')

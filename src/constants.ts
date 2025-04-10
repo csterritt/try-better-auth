@@ -57,6 +57,10 @@ export const PATHS = {
   },
 }
 
+// Check if we're in production (for cookie security)
+// Using process.env.NODE_ENV as a more standard approach
+export const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+
 // Cookie names
 export const COOKIES = {
   // Oridnary message cookie
@@ -67,6 +71,14 @@ export const COOKIES = {
   EMAIL_ENTERED: 'EMAIL_ENTERED',
   // OTP setup timestamp cookie (encrypted)
   OTP_SETUP: 'OTP_SETUP',
+  // Session cookie
+  SESSION: 'better-auth.session_token',
+  // Standard cookie options
+  STANDARD_COOKIE_OPTIONS: {
+    path: '/',
+    httpOnly: true,
+    secure: IS_PRODUCTION,
+  },
 }
 
 // Validation patterns
@@ -86,10 +98,6 @@ export const REDIRECTS = {
   // After error
   AFTER_ERROR: PATHS.HOME,
 }
-
-// Check if we're in production (for cookie security)
-// Using process.env.NODE_ENV as a more standard approach
-export const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 
 // Time constants (in seconds)
 export const TIME_LIMITS = {

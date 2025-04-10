@@ -1,5 +1,5 @@
 import { Context, Hono } from 'hono'
-import { getCookie } from 'hono/cookie'
+import { getCookie, setCookie } from 'hono/cookie'
 
 import { Env } from '../cf-env'
 import { auth } from './auth'
@@ -25,11 +25,11 @@ export const setupResendCodeHandler = (
 
       // Validate email format
       if (!email || !VALIDATION.EMAIL_REGEX.test(email) || email.length > 254) {
+        setCookie(c, COOKIES.EMAIL_ENTERED, email || '')
         return redirectWithError(
           c,
           PATHS.AUTH.SERVER.SIGN_IN,
-          'Please enter a valid email address',
-          { [COOKIES.EMAIL_ENTERED]: email || '' }
+          'Please enter a valid email address'
         )
       }
 
@@ -56,10 +56,7 @@ export const setupResendCodeHandler = (
 
       // Decrypt the cookie value
       try {
-        const decryptedData = decrypt(
-          otpSetupCookie,
-          process.env.ENCRYPT_KEY
-        )
+        const decryptedData = decrypt(otpSetupCookie, process.env.ENCRYPT_KEY)
         if (!decryptedData) {
           console.error('Failed to decrypt OTP_SETUP cookie')
           return redirectWithError(
@@ -78,11 +75,11 @@ export const setupResendCodeHandler = (
         if (elapsedSeconds < TIME_LIMITS.MIN_TIME_BETWEEN_REQUESTS) {
           const remainingSeconds =
             TIME_LIMITS.MIN_TIME_BETWEEN_REQUESTS - elapsedSeconds
+          setCookie(c, COOKIES.EMAIL_ENTERED, email)
           return redirectWithMessage(
             c,
             `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
-            `Please wait another ${remainingSeconds} seconds before asking for another code, to give time for the email to arrive.`,
-            { [COOKIES.EMAIL_ENTERED]: email }
+            `Please wait another ${remainingSeconds} seconds before asking for another code, to give time for the email to arrive.`
           )
         }
       } catch (error) {
@@ -123,27 +120,25 @@ export const setupResendCodeHandler = (
       if (response.status !== 200) {
         const responseText = await response.text()
         console.error('Error resending OTP:', responseText)
+        setCookie(c, COOKIES.EMAIL_ENTERED, email)
         return redirectWithError(
           c,
           `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
-          'Failed to resend verification code',
-          { [COOKIES.EMAIL_ENTERED]: email }
+          'Failed to resend verification code'
         )
       }
 
-      // Set a new encrypted cookie with current timestamp for the new OTP
-      const extraCookies = {
-        [COOKIES.EMAIL_ENTERED]: email,
-      }
+      setCookie(c, COOKIES.EMAIL_ENTERED, email)
       try {
         // Create OTP setup data object with current time and reset code attempts
         const otpSetupData: OtpSetupData = {
           time: Date.now(),
-          codeAttempts: 0
+          codeAttempts: 0,
         }
-        extraCookies[COOKIES.OTP_SETUP] = encrypt(
-          JSON.stringify(otpSetupData),
-          process.env.ENCRYPT_KEY
+        setCookie(
+          c,
+          COOKIES.OTP_SETUP,
+          encrypt(JSON.stringify(otpSetupData), process.env.ENCRYPT_KEY)
         )
       } catch (error) {
         console.error('Error setting new OTP_SETUP cookie:', error)
@@ -154,8 +149,7 @@ export const setupResendCodeHandler = (
       return redirectWithMessage(
         c,
         `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
-        'Code sent! Please check your email (including spam folder).',
-        extraCookies
+        'Code sent! Please check your email (including spam folder).'
       )
     } catch (error) {
       console.error('Error resending OTP:', error)

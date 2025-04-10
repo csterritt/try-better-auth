@@ -26,24 +26,22 @@ export const setupStartOtpHandler = (
         path: '/',
       })
 
-      if (!email || typeof email !== 'string') {
+      if (!email) {
+        setCookie(c, COOKIES.EMAIL_ENTERED, email)
         return redirectWithError(
           c,
           PATHS.AUTH.SERVER.SIGN_IN,
-          'Email is required',
-          {
-            [COOKIES.EMAIL_ENTERED]: email,
-          }
+          'Email is required'
         )
       }
 
       // Validate email format
       if (!VALIDATION.EMAIL_REGEX.test(email) || email.length > 254) {
+        setCookie(c, COOKIES.EMAIL_ENTERED, email)
         return redirectWithError(
           c,
           PATHS.AUTH.SERVER.SIGN_IN,
-          'Please enter a valid email address',
-          { [COOKIES.EMAIL_ENTERED]: email }
+          'Please enter a valid email address'
         )
       }
 
@@ -87,7 +85,7 @@ export const setupStartOtpHandler = (
         // Create OTP setup data object with current time and 0 code attempts
         const otpSetupData: OtpSetupData = {
           time: Date.now(),
-          codeAttempts: 0
+          codeAttempts: 0,
         }
 
         // Check if encryption key is available
@@ -95,12 +93,16 @@ export const setupStartOtpHandler = (
           console.error('ENCRYPT_KEY is not defined in environment variables')
           // Continue without setting the encrypted cookie
         } else {
-          const encryptedData = encrypt(JSON.stringify(otpSetupData), process.env.ENCRYPT_KEY)
-          setCookie(c, COOKIES.OTP_SETUP, encryptedData, {
-            path: '/',
-            httpOnly: true,
-            secure: IS_PRODUCTION,
-          })
+          const encryptedData = encrypt(
+            JSON.stringify(otpSetupData),
+            process.env.ENCRYPT_KEY
+          )
+          setCookie(
+            c,
+            COOKIES.OTP_SETUP,
+            encryptedData,
+            COOKIES.STANDARD_COOKIE_OPTIONS
+          )
         }
       } catch (error) {
         console.error('Error setting encrypted cookie:', error)

@@ -1,6 +1,6 @@
-import { Context, Hono } from 'hono'
 import fs from 'fs'
-import { getCookie } from 'hono/cookie'
+import { Context, Hono } from 'hono'
+import { getCookie, setCookie } from 'hono/cookie'
 
 import { Env } from '../cf-env'
 import { auth } from './auth'
@@ -31,31 +31,31 @@ export const setupFinishOtpHandler = (
       let otp = formData.otp as string | undefined
 
       if (!email) {
+        setCookie(c, COOKIES.EMAIL_ENTERED, email?.toString() || '')
         return redirectWithError(
           c,
           `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email || '')}`,
-          'Email is required',
-          { [COOKIES.EMAIL_ENTERED]: email?.toString() || '' }
+          'Email is required'
         )
       }
 
       // Validate email format
       email = email.trim()
       if (!VALIDATION.EMAIL_REGEX.test(email) || email.length > 254) {
+        setCookie(c, COOKIES.EMAIL_ENTERED, email)
         return redirectWithError(
           c,
           PATHS.AUTH.SERVER.SIGN_IN,
-          'Please enter a valid email address',
-          { [COOKIES.EMAIL_ENTERED]: email }
+          'Please enter a valid email address'
         )
       }
 
       if (!otp || otp.trim().length !== 6) {
+        setCookie(c, COOKIES.EMAIL_ENTERED, email)
         return redirectWithError(
           c,
           `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
-          "You must supply the code sent to your email address. Check your spam filter, and after a few minutes, if it hasn't arrived, click the 'Resend' button below to try again.",
-          { [COOKIES.EMAIL_ENTERED]: email }
+          "You must supply the code sent to your email address. Check your spam filter, and after a few minutes, if it hasn't arrived, click the 'Resend' button below to try again."
         )
       }
 
@@ -124,20 +124,19 @@ export const setupFinishOtpHandler = (
       if (response.status !== 200) {
         const responseJson = (await response.json()) as any
 
-        // Update the OTP setup cookie with the incremented attempt count
-        let extraCookies = { [COOKIES.EMAIL_ENTERED]: email }
-
         if (process.env.ENCRYPT_KEY) {
           try {
-            extraCookies[COOKIES.OTP_SETUP] = encrypt(
-              JSON.stringify(otpSetupData),
-              process.env.ENCRYPT_KEY
+            setCookie(
+              c,
+              COOKIES.OTP_SETUP,
+              encrypt(JSON.stringify(otpSetupData), process.env.ENCRYPT_KEY)
             )
           } catch (error) {
             console.error('Error updating OTP_SETUP cookie:', error)
           }
         }
 
+        setCookie(c, COOKIES.EMAIL_ENTERED, email)
         if (
           responseJson.code === 'OTP_EXPIRED' ||
           (!IS_PRODUCTION && otp === '111111')
@@ -145,8 +144,7 @@ export const setupFinishOtpHandler = (
           return redirectWithError(
             c,
             PATHS.AUTH.SERVER.SIGN_IN,
-            'OTP has expired, please sign in again',
-            { [COOKIES.EMAIL_ENTERED]: email }
+            'OTP has expired, please sign in again'
           )
         } else {
           // Check if max attempts reached
@@ -154,16 +152,14 @@ export const setupFinishOtpHandler = (
             return redirectWithError(
               c,
               PATHS.AUTH.SERVER.SIGN_IN,
-              'Too many failed attempts. Please sign in again.',
-              { [COOKIES.EMAIL_ENTERED]: email }
+              'Too many failed attempts. Please sign in again.'
             )
           }
 
           return redirectWithError(
             c,
             `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
-            'Invalid OTP or verification failed',
-            extraCookies
+            'Invalid OTP or verification failed'
           )
         }
       }
@@ -207,11 +203,11 @@ export const setupFinishOtpHandler = (
       try {
         const formData: FormDataType = await c.req.parseBody()
         const email = (formData.email as string | undefined) || ''
+        setCookie(c, COOKIES.EMAIL_ENTERED, email)
         return redirectWithError(
           c,
           `${PATHS.AUTH.SERVER.AWAIT_CODE}?email=${encodeURIComponent(email)}`,
-          'Failed to verify OTP',
-          { [COOKIES.EMAIL_ENTERED]: email }
+          'Failed to verify OTP'
         )
       } catch {
         return redirectWithError(
